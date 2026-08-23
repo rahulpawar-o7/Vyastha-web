@@ -32,3 +32,9 @@
         transform: rotate(360deg);
     }
 }
+
+
+.avoid-break {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}

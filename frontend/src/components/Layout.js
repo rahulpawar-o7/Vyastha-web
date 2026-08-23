@@ -1,3 +1,4 @@
+import logo from "../assets/vyastha_logo.jpeg";
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -90,10 +91,17 @@ export default function Layout({ children }) {
       {/* Mobile Top Navbar */}
       <div className="md:hidden bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white tracking-wider">
-            V
-          </div>
-          <span className="font-extrabold text-lg tracking-tight">VYASTHA</span>
+          <img 
+  src={logo} 
+  alt="Vyastha" 
+  className="h-9 w-9 rounded-lg object-cover shadow-sm"
+/>
+</div>
+
+
+
+              <div>
+                <span className="font-extrabold text-lg tracking-tight text-white block leading-none">Vyastha</span>
         </div>
         <button 
           data-testid="mobile-menu-toggle-btn"
@@ -113,11 +121,19 @@ export default function Layout({ children }) {
           {/* Brand Header */}
           <div className="hidden md:flex items-center justify-between p-5 border-b border-slate-800">
             <Link to="/dashboard" className="flex items-center space-x-3">
-              <div className="h-9 w-9 bg-blue-600 rounded-lg flex items-center justify-center font-black text-xl text-white shadow-sm">
+              {/* <div className="h-9 w-9 bg-blue-600 rounded-lg flex items-center justify-center font-black text-xl text-white shadow-sm">
                 V
-              </div>
+              </div> */}
+              <img 
+  src={logo} 
+  alt="Vyastha" 
+  className="h-9 w-9 rounded-lg object-cover shadow-sm"
+/>
+
+
+
               <div>
-                <span className="font-extrabold text-lg tracking-tight text-white block leading-none">VYASTHA</span>
+                <span className="font-extrabold text-lg tracking-tight text-white block leading-none">Vyastha</span>
                 <span className="text-[10px] text-blue-400 font-mono uppercase tracking-widest">Billing & Stock</span>
               </div>
             </Link>
