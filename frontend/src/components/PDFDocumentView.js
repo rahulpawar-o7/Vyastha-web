@@ -1,3 +1,5 @@
+import appLogo from '../assets/vyastha_logo.jpeg';
+import html2pdf from 'html2pdf.js';
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, Printer, CheckCircle, ShieldCheck } from 'lucide-react';
@@ -21,43 +23,70 @@ export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
   // UPI Intent URL
   const upiUrl = documentData?.upi_qr_data || `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.company_name || 'Vyastha'}&am=${documentData?.total_amount || 0}&cu=INR&tn=${docNumber}`;
 
-  const handleDownloadPDF = async () => {
-    if (!printRef.current) return;
-    setDownloading(true);
-    try {
-      const canvas = await html2canvas(printRef.current, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#FFFFFF',
-      });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+  // const handleDownloadPDF = async () => {
+  //   if (!printRef.current) return;
+  //   setDownloading(true);
+  //   try {
+  //     const canvas = await html2canvas(printRef.current, {
+  //       scale: 2,
+  //       useCORS: true,
+  //       logging: false,
+  //       backgroundColor: '#FFFFFF',
+  //     });
+  //     const imgData = canvas.toDataURL('image/png');
+  //     const pdf = new jsPDF('p', 'mm', 'a4');
+  //     const imgWidth = 210;
+  //     const pageHeight = 297;
+  //     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  //     let heightLeft = imgHeight;
+  //     let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+  //     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  //     heightLeft -= pageHeight;
 
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
+  //     while (heightLeft >= 0) {
+  //       position = heightLeft - imgHeight;
+  //       pdf.addPage();
+  //       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+  //       heightLeft -= pageHeight;
+  //     }
 
-      pdf.save(`${docNumber || 'document'}.pdf`);
-      toast.success(`${isInvoice ? 'Invoice' : 'Quotation'} PDF downloaded successfully!`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to generate PDF. You can also use the Print button.");
-    } finally {
-      setDownloading(false);
-    }
-  };
+  //     pdf.save(`${docNumber || 'document'}.pdf`);
+  //     toast.success(`${isInvoice ? 'Invoice' : 'Quotation'} PDF downloaded successfully!`);
+  //   } catch (err) {
+  //     console.error(err);
+  //     toast.error("Failed to generate PDF. You can also use the Print button.");
+  //   } finally {
+  //     setDownloading(false);
+  //   }
+  // };
+
+    const handleDownloadPDF = async () => {
+  if (!printRef.current) return;
+  setDownloading(true);
+  try {
+    await html2pdf()
+      .set({
+        margin: 0,
+        filename: `${docNumber || 'document'}.pdf`,
+        image: { type: 'png', quality: 1 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      })
+      .from(printRef.current)
+      .save();
+    toast.success(`${isInvoice ? 'Invoice' : 'Quotation'} PDF downloaded successfully!`);
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to generate PDF. You can also use the Print button.");
+  } finally {
+    setDownloading(false);
+  }
+};
+
+
+
 
   const handlePrint = () => {
     window.print();
@@ -224,7 +253,8 @@ export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
             <div className="flex-1 space-y-4 max-w-sm">
               <div className="border border-slate-200 bg-slate-50 p-3.5 rounded-lg flex items-center space-x-4">
                 {/* Dynamic UPI Payment QR Code */}
-                <div className="bg-white p-2 border border-slate-300 rounded shadow-sm flex-shrink-0 flex flex-col items-center">
+                {/* <div className="bg-white p-2 border border-slate-300 rounded shadow-sm flex-shrink-0 flex flex-col items-center"> */}
+                <div className="border border-slate-200 bg-slate-50 p-3.5 rounded-lg flex items-center space-x-4 avoid-break">
                   <QRCodeSVG 
                     value={upiUrl} 
                     size={84} 
@@ -311,6 +341,11 @@ export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
               </p>
               <p className="text-[10px] text-slate-400 font-mono">Authorized Signatory</p>
             </div>
+          </div>
+          {/* App Branding Footer */}
+          <div className="flex items-center justify-center space-x-1.5 mt-8 pt-4 border-t border-slate-100">
+            <img src={appLogo} alt="Vyastha" className="h-4 w-4 rounded object-cover" />
+            <span className="text-[9px] text-slate-400 font-medium">Generated with Vyastha</span>
           </div>
         </div>
       </div>
