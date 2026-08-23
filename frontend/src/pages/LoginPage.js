@@ -1,3 +1,4 @@
+import logo from "../assets/vyastha_logo.jpeg";
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -44,21 +45,25 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10 space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-blue-600 text-white font-black text-2xl shadow-lg shadow-blue-500/30">
-            V
+             <img 
+              src={logo} 
+              alt="Vyastha" 
+              className="h-9 w-9 rounded-lg object-cover shadow-sm"
+            />
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight" data-testid="login-heading">
-            VYASTHA
+            Vyastha
           </h1>
           <p className="text-sm text-slate-400">
             Smart Billing, Invoicing & Inventory for Growing Businesses
           </p>
         </div>
-
+{/* 
         <div className="bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900 border border-blue-500/30 p-4 rounded-xl text-center shadow-lg">
-          <div className="flex items-center justify-center space-x-1.5 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
+          {/* <div className="flex items-center justify-center space-x-1.5 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
             <Sparkles size={14} />
             <span>Instant Sandbox Mode</span>
-          </div>
+          </div> 
           <p className="text-xs text-slate-300 mb-3">
             Explore all modules immediately with pre-configured GST, Invoices, QR payments and stock tracking.
           </p>
@@ -72,7 +77,7 @@ export default function LoginPage() {
             <span>1-Click Demo Login</span>
             <ArrowRight size={14} />
           </button>
-        </div>
+        </div> */}
 
         <div className="bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-2xl backdrop-blur-md">
           <form onSubmit={handleSubmit} className="space-y-4">
