@@ -1,0 +1,60 @@
+{
+  "summary": "Full-stack E2E testing of Vyastha (Phase 1). Backend: created pytest suite (47 tests) covering auth (demo/manual login, register, JWT, cookies, bcrypt), company profile, customers CRUD, products/inventory (adjust IN/OUT, alerts, transactions), invoices (server-side auto-calc, UPI QR string, stock auto-deduct, draft->finalize deduct, numbering), quotations + convert-to-invoice, drafts (50/day limit enforced incl. 51st rejection on a fresh tenant), payments (today/all, full & partial), dashboard stats, multi-tenant isolation. Result 43/47 passing (91%). Frontend: Playwright flows for demo login, all 8 sidebar pages, invoice builder real-time calc, inventory product creation + stock adjust + auto-deduct after invoice, quotation create + convert, PDF preview with dynamic UPI QR (reflects updated Settings UPI), PDF download (jsPDF file produced), payment recording (invoice flips to paid), drafts save/resume/delete + quota counter, customers CRUD + search, Settings save/persist, invalid-login error, logout, protected-route redirect, mobile 390px nav. All frontend P0 flows passed. FOUND+FIXED one CRITICAL blocker: ObjectId leak in seller_details caused HTTP 500 across GET /api/invoices, /api/quotations, /api/dashboard/stats, /api/drafts/stats.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/invoices, POST /api/quotations, POST /api/quotations/{id}/convert-to-invoice", "issue": "FIXED BY TESTER (RCA below): company_profiles.find_one() was called without a {\"_id\":0} projection, so the Mongo ObjectId was embedded inside invoice/quotation seller_details. Top-level {\"_id\":0} projections did not strip the nested ObjectId, so every read endpoint returned 500 ('ObjectId object is not iterable') and the whole app (dashboard, invoice list, drafts, quotations) was broken. Fixed by adding projections at server.py L830/L1028/L1095 (+ quotation lookup L1091) and cleaning contaminated documents. Please review and keep this pattern for any future nested-document copies.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/payments", "issue": "No amount validation: negative amounts (e.g. -100) and overpayments far beyond invoice balance (5000 against a 100 invoice) are accepted with 200. Negative payments then render as '+₹-100' on Payments page and inflate/deflate collection totals. Add Pydantic gt=0 and a balance_due check (400 on excess)."},
+      {"endpoint": "POST /api/quotations/{id}/convert-to-invoice", "issue": "An already-converted quotation (status=converted) can be converted repeatedly, creating duplicate invoices and duplicate stock OUT deductions. Should return 400/409 when status == 'converted'."},
+      {"endpoint": "POST /api/auth/login", "issue": "No brute-force protection: 6+ consecutive bad passwords all return 401 with no lockout/throttle (playbook expects lockout after 5 failures, 423/429)."},
+      {"endpoint": "startup seed_admin", "issue": "Admin is only seeded when absent; if ADMIN_PASSWORD changes the existing admin hash is never updated (non-idempotent seed). Playbook expects update-on-change."},
+      {"endpoint": "CORS middleware", "issue": "allow_origins=[\"*\"] together with allow_credentials=True - browsers reject credentialed requests with a wildcard origin, so httpOnly cookie auth cannot work cross-origin. Use explicit origin list from env."},
+      {"endpoint": "DELETE /api/products/{id}, DELETE /api/quotations/{id}", "issue": "Return 200 for non-existent ids (no 404); delete_one result is not checked."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PDFDocumentView (pre-save preview)", "issue": "In the builder's 'Preview Document' modal for an unsaved invoice/quotation the document number renders as a bare '#' because the number is server-generated on save. Show 'Auto-generated on save' or a provisional number.", "selector": "[data-testid=\"preview-invoice-modal-btn\"]", "priority": "LOW"},
+      {"component": "PaymentsPage row amount", "issue": "Amounts are rendered with a hardcoded '+' prefix, so a negative/refund amount displays as '+₹-100' (surfaced by the missing backend amount validation).", "selector": "[data-testid^=\"payment-row-\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Invoice/Quotation Builder", "issues": ["Date fields (invoice date, shipping date, valid until) use the native browser date input (mm/dd/yyyy) instead of the available shadcn Calendar component; also shows US format for an INR/India-focused app (dd/mm/yyyy expected)."]},
+      {"screen": "Invoice/Quotation Builder", "issues": ["Invoice # field is disabled with placeholder 'Auto-Generated' - acceptable, but the data-testid=\"invoice-number-input\" stays empty until save, which can confuse automation/users."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Validate payment amount: reject amount <= 0 (422) and reject amount > invoice balance_due (400) in POST /api/payments.",
+    "Block re-conversion of a quotation whose status is already 'converted' (return 409) to prevent duplicate invoices and double stock deduction.",
+    "Add login brute-force lockout (5 failed attempts -> 423/429 with cooldown) per playbook.",
+    "Make seed_admin idempotent: update the existing admin password hash when ADMIN_PASSWORD changes.",
+    "Replace CORS allow_origins=['*'] with explicit origins from env since allow_credentials=True.",
+    "Return 404 from DELETE /api/products/{id} and DELETE /api/quotations/{id} when the id does not exist.",
+    "Optional UX: show a provisional/auto-generated number in the pre-save PDF preview, and swap native date inputs for the shadcn Calendar with dd/mm/yyyy."
+  ],
+  "critical_code_review_comments": [
+    "Never copy a raw Mongo document into another document: use projections ({'_id': 0}) or explicit field mapping. Nested ObjectIds are invisible to top-level {'_id': 0} projections and crash FastAPI serialization (this exact bug 500'd every list/dashboard endpoint).",
+    "server.py is 1556 lines - split into routers (auth, invoices, quotations, inventory, payments) plus a services/helpers module.",
+    "Invoice and quotation create/update duplicate ~40 lines of discount/tax/total math and UPI QR building - extract a single compute_totals() helper to avoid divergence.",
+    "PaymentCreate.amount has no constraint (should be Field(gt=0)); several endpoints accept raw dict bodies (PUT /api/company-profile) with no Pydantic validation.",
+    "restore_inventory_for_items is only wired for finalized->cancelled; deleting a finalized invoice (DELETE /api/invoices/{id}) leaves stock permanently deducted with no reversal transaction."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (added {'_id': 0} projections to company_profiles/quotation lookups at L830, L1028, L1091, L1095 - ObjectId serialization fix)",
+    "/app/backend/tests/backend_test.py (new)",
+    "/app/backend/tests/conftest.py (new)"
+  ],
+  "success_rate": {"backend": "91% (43/47 pytest)", "frontend": "100% of P0 flows passed (2 cosmetic issues)"},
+  "seed_data_creation": "Used /api/seed/demo-data for the demo tenant. All TEST_/QA test artifacts (invoices, quotations, products, customers, payments, inventory transactions, temp users) were deleted after the run; demo company UPI/bank details restored to vyastha.enterprise@hdfcbank / HDFC Bank Ltd. Contaminated seller_details._id fields removed from pre-existing invoices/quotations.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "demo@vyastha.com / demopassword123 (also 1-Click Demo Login); admin@vyastha.com / adminpassword123",
+  "context_for_next_testing_agent": "Run `cd /app/backend && python -m pytest tests/ -v` (pytest.ini already sets -n 2 --dist loadscope). Known intentional failures documenting product bugs: TestAuth::test_brute_force_lockout, TestPayments::test_overpayment_rejected, TestPayments::test_negative_payment_rejected, TestQuotations::test_double_convert_quotation. Everything else passed. Note: EmailStr rejects .test TLDs - use @qatest-vyastha.com for synthetic users. Quotation builder testids differ from invoice builder (quote-buyer-company-input, quote-item-desc-0/qty/price/amount, save-quote-btn, save-draft-quote-btn). Frontend needs generous waits (2-4s) after page load before reading computed totals/dropdown options, otherwise reads happen pre-fetch and look like bugs. Verified E2E: auto-calc (800 subtotal / 10% disc / 18% GST = 849.60), stock 50->46 after invoice, quote->invoice with reference_quotation_number, UPI QR reflects Settings UPI, PDF download produces INV-*.pdf.",
+  "rca_of_the_issue": "Root cause of the app-wide 500s: create_invoice/create_quotation/convert_quotation loaded the company profile via db.company_profiles.find_one({'user_id': ...}) WITHOUT a projection and stored that document (including its ObjectId _id) as invoice['seller_details']. Read endpoints project only the top-level _id away, so the nested ObjectId reached FastAPI's jsonable_encoder and raised TypeError(\"'ObjectId' object is not iterable\") -> 500 on GET /api/invoices, /api/quotations, /api/dashboard/stats, /api/drafts/stats and on POST responses. Reproduction: create an invoice, then GET /api/invoices -> 500. Mitigation applied: added {'_id': 0} projections and unset seller_details._id/buyer_details._id/bank_details._id on the 10 already-corrupted documents; all affected endpoints now return 200."
+}
