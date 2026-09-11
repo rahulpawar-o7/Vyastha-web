@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext';
 // import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck, QrCode, Package } from 'lucide-react';
 import { toast } from 'sonner';
+import WelcomeNamaste from '../components/WelcomeNamaste';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, demoLogin } = useAuth();
+  const { login, demoLogin, user } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -26,19 +27,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  // const handleQuickDemo = async () => {
-  //   setLoading(true);
-  //   try {
-  //     await demoLogin();
-  //     toast.success('Logged in as Demo Business Owner!');
-  //     navigate('/dashboard');
-  //   } catch (err) {
-  //     toast.error('Failed to log in with demo account');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   return (
     // <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
@@ -60,29 +48,7 @@ export default function LoginPage() {
  Sab Sambhal Lega!
 </p>
         </div>
-{/* 
-        <div className="bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900 border border-blue-500/30 p-4 rounded-xl text-center shadow-lg">
-          {/* <div className="flex items-center justify-center space-x-1.5 text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">
-            <Sparkles size={14} />
-            <span>Instant Sandbox Mode</span>
-          </div> 
-          <p className="text-xs text-slate-300 mb-3">
-            Explore all modules immediately with pre-configured GST, Invoices, QR payments and stock tracking.
-          </p>
-          <button
-            type="button"
-            onClick={handleQuickDemo}
-            disabled={loading}
-            data-testid="demo-quick-login-btn"
-            className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center justify-center space-x-2"
-          >
-            <span>1-Click Demo Login</span>
-            <ArrowRight size={14} />
-          </button>
-        </div> */}
 
-        {/* <div className="bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-2xl backdrop-blur-md">
-         */}
          <div className="bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-2xl shadow-blue-900/20 backdrop-blur-md">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

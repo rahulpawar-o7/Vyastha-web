@@ -286,10 +286,23 @@ export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
                   <span className="font-mono font-bold">-₹{Number(documentData?.discount_amount || 0).toFixed(2)}</span>
                 </div>
               )}
-              <div className="flex justify-between py-1 border-b border-slate-200">
-                <span className="text-slate-600">Tax / GST ({documentData?.tax_rate || 0}%):</span>
-                <span className="font-mono font-bold">₹{Number(documentData?.tax_amount || 0).toFixed(2)}</span>
-              </div>
+              {Number(documentData?.cgst_amount) > 0 ? (
+  <>
+    <div className="flex justify-between py-1 border-b border-slate-200">
+      <span className="text-slate-600">CGST ({(documentData?.tax_rate || 0) / 2}%):</span>
+      <span className="font-mono font-bold">₹{Number(documentData?.cgst_amount || 0).toFixed(2)}</span>
+    </div>
+    <div className="flex justify-between py-1 border-b border-slate-200">
+      <span className="text-slate-600">SGST ({(documentData?.tax_rate || 0) / 2}%):</span>
+      <span className="font-mono font-bold">₹{Number(documentData?.sgst_amount || 0).toFixed(2)}</span>
+    </div>
+  </>
+) : (
+  <div className="flex justify-between py-1 border-b border-slate-200">
+    <span className="text-slate-600">IGST ({documentData?.tax_rate || 0}%):</span>
+    <span className="font-mono font-bold">₹{Number(documentData?.igst_amount || 0).toFixed(2)}</span>
+  </div>
+)}
               <div className="flex justify-between py-2 bg-slate-950 text-white px-3 rounded text-sm font-bold">
                 <span>Grand Total:</span>
                 <span className="font-mono text-base" data-testid="pdf-grand-total">

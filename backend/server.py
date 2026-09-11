@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta, date
 from typing import List, Optional, Dict, Any
 import bcrypt
 import jwt
+from lib.amount_words import amount_in_words
 from bson import ObjectId
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
@@ -137,6 +138,7 @@ class CompanyProfile(BaseModel):
     company_name: str = "Vyastha Enterprise"
     pan_number: str = ""
     gstin_number: str = ""
+    state_code: str = ""  
     phone: str = ""
     email: str = ""
     company_logo: str = ""
@@ -155,6 +157,7 @@ class Customer(BaseModel):
     company_name: str
     contact_person: str = ""
     gstin_number: str = ""
+    state_code: str = "" 
     pan_number: str = ""
     phone: str = ""
     email: str = ""
@@ -283,6 +286,14 @@ def build_upi_qr_string(upi_id: str, company_name: str, amount: float, ref: str)
     clean_ref = "".join(c for c in ref if c.isalnum() or c in "-_") or "Bill"
     formatted_amt = f"{amount:.2f}"
     return f"upi://pay?pa={upi_id}&pn={clean_name}&am={formatted_amt}&cu=INR&tn={clean_ref}"
+
+def calculate_gst_split(tax_amount: float, seller_state: str, buyer_state: str):
+    """Same state → CGST+SGST split; different state → IGST."""
+    if seller_state and buyer_state and seller_state.strip() == buyer_state.strip():
+        half = round(tax_amount / 2, 2)
+        return {"cgst_amount": half, "sgst_amount": tax_amount - half, "igst_amount": 0.0}
+    else:
+        return {"cgst_amount": 0.0, "sgst_amount": 0.0, "igst_amount": round(tax_amount, 2)}
 
 async def get_next_sequence(user_id: str, seq_type: str, prefix: str) -> str:
     year = date.today().year
@@ -853,6 +864,10 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
     taxable = max(0.0, calc_subtotal - discount_amt)
     calc_tax_amt = (taxable * data.tax_rate) / 100.0
     calc_total = taxable + calc_tax_amt
+    calc_amount_in_words = amount_in_words(calc_total)
+    seller_state = (data.seller_details or profile).get("state_code", "")
+    buyer_state = buyer.get("state_code", "")
+    gst_split = calculate_gst_split(calc_tax_amt, seller_state, buyer_state)
     
     # Generate Dynamic UPI Payment QR Data
     seller = data.seller_details or profile
@@ -942,6 +957,10 @@ async def update_invoice(invoice_id: str, data: InvoiceCreate, user: dict = Depe
     taxable = max(0.0, calc_subtotal - discount_amt)
     calc_tax_amt = (taxable * data.tax_rate) / 100.0
     calc_total = taxable + calc_tax_amt
+    calc_amount_in_words = amount_in_words(calc_total)
+    seller_state = data.seller_details.get("state_code", "")
+    buyer_state = data.buyer_details.get("state_code", "")
+    gst_split = calculate_gst_split(calc_tax_amt, seller_state, buyer_state)
     
     upi_id = data.seller_details.get("bank_details", {}).get("upi_id") or "business@upi"
     company_name = data.seller_details.get("company_name") or "Vyastha Business"
@@ -971,6 +990,10 @@ async def update_invoice(invoice_id: str, data: InvoiceCreate, user: dict = Depe
         "discount_value": data.discount_value,
         "discount_amount": round(discount_amt, 2),
         "total_amount": round(calc_total, 2),
+        "amount_in_words": calc_amount_in_words,
+        "cgst_amount": gst_split["cgst_amount"],
+        "sgst_amount": gst_split["sgst_amount"],
+        "igst_amount": gst_split["igst_amount"],
         "terms_and_conditions": data.terms_and_conditions,
         "bank_details": data.bank_details,
         "signature_url": data.signature_url,
@@ -1075,6 +1098,10 @@ async def create_quotation(data: QuotationCreate, user: dict = Depends(get_curre
         "discount_value": data.discount_value,
         "discount_amount": round(discount_amt, 2),
         "total_amount": round(calc_total, 2),
+        "amount_in_words": calc_amount_in_words,
+        "cgst_amount": gst_split["cgst_amount"],
+        "sgst_amount": gst_split["sgst_amount"],
+        "igst_amount": gst_split["igst_amount"],
         "terms_and_conditions": data.terms_and_conditions or profile.get("default_terms", ""),
         "bank_details": data.bank_details or profile.get("bank_details", {}),
         "signature_url": data.signature_url or profile.get("signature_image", ""),

@@ -1,0 +1,22 @@
+.vyastha-welcome-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(circle at center,#155bc0 0%,#06459f 45%,#02337b 100%);animation:welcomeFadeIn .5s ease forwards}
+.vyastha-welcome-content{position:relative;z-index:5;text-align:center;animation:contentEnter 1s cubic-bezier(.2,.8,.2,1) forwards}
+.namaste-wrapper{position:relative;display:inline-block;min-width:320px;min-height:190px;color:#fff}
+.namaste-line{position:absolute;left:8%;right:8%;top:35px;height:5px;border-radius:10px;background:#fff;transform:scaleX(0);transform-origin:left;animation:drawLine .7s ease forwards .5s}
+.namaste-text{position:relative;padding-top:45px;font-family:"Noto Sans Devanagari","Mangal",sans-serif;font-size:clamp(65px,9vw,115px);font-weight:500;line-height:1;color:#fff;opacity:0;transform:translateY(25px);animation:namasteReveal 1.2s cubic-bezier(.2,.8,.2,1) forwards .9s}
+.namaste-swoosh{position:absolute;width:170px;height:85px;right:-15px;bottom:0;border-bottom:7px solid #fff;border-radius:0 0 100% 70%;transform:rotate(-18deg) scaleX(0);transform-origin:left;animation:swooshDraw 1s ease forwards 2s}
+.welcome-user{margin-top:28px;font-size:22px;font-weight:500;color:rgba(255,255,255,.92);opacity:0;animation:fadeUp .8s ease forwards 2.7s}
+.welcome-brand{margin-top:12px;font-size:15px;letter-spacing:5px;text-transform:uppercase;color:rgba(255,255,255,.65);opacity:0;animation:fadeUp .8s ease forwards 3s}
+.welcome-actions{margin-top:38px;display:flex;justify-content:center;gap:12px;opacity:0;animation:fadeUp .8s ease forwards 3.4s}
+.edit-greeting-btn,.skip-btn{border:0;padding:11px 20px;border-radius:12px;cursor:pointer;font-size:14px;transition:transform .2s ease,background .2s ease}
+.edit-greeting-btn{color:#06459f;background:#fff}.skip-btn{color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25)}
+.edit-greeting-btn:hover,.skip-btn:hover{transform:translateY(-2px)}
+.greeting-editor{width:min(90vw,430px);padding:32px;border-radius:24px;background:rgba(255,255,255,.12);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.2);color:white}
+.editor-title{font-size:24px;font-weight:600}.editor-subtitle{margin-top:8px;font-size:14px;opacity:.7}
+.greeting-editor input{width:100%;margin-top:24px;padding:14px 16px;box-sizing:border-box;border:0;outline:none;border-radius:12px;font-size:22px;font-family:"Noto Sans Devanagari","Mangal",sans-serif}
+.editor-buttons{display:flex;gap:10px;margin-top:18px}.save-btn,.cancel-btn{flex:1;padding:12px;border:0;border-radius:10px;cursor:pointer}
+.save-btn{background:white;color:#06459f}.cancel-btn{background:rgba(255,255,255,.12);color:white}
+.vyastha-glow{position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.08);filter:blur(60px);animation:floatingGlow 5s ease-in-out infinite}
+.glow-one{top:-100px;left:-100px}.glow-two{right:-100px;bottom:-100px;animation-delay:1.5s}
+@keyframes welcomeFadeIn{from{opacity:0}to{opacity:1}}@keyframes contentEnter{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}@keyframes drawLine{to{transform:scaleX(1)}}@keyframes namasteReveal{to{opacity:1;transform:translateY(0)}}@keyframes swooshDraw{to{transform:rotate(-18deg) scaleX(1)}}@keyframes fadeUp{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}@keyframes floatingGlow{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-20px) scale(1.15)}}
+@media(max-width:600px){.namaste-wrapper{min-width:280px}.namaste-text{font-size:72px}.namaste-swoosh{width:130px}.welcome-user{font-size:18px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important}}
