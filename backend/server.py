@@ -15,6 +15,9 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 
+from lib import plans as plans_lib
+from lib import razorpay_client
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -1585,3 +1588,48 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+
+from lib import plans as plans_lib
+from lib import razorpay_client
+
+@api_router.get("/plans")
+async def list_plans():
+    """Saare active subscription plans return karo."""
+    documents = await db.plans.find({"active": True}).sort("rank", 1).to_list(50)
+    for doc in documents:
+        doc.pop("_id", None)
+    return documents
+
+
+@api_router.post("/billing/create-order")
+async def create_razorpay_order(
+    plan_slug: str,
+    billing_cycle: str = "monthly",
+    user: dict = Depends(get_current_user),
+):
+    """Ek business ke liye Razorpay order banao (payment start karne ke liye)."""
+    plan = plans_lib.get_default_plan(plan_slug)
+    amount_rupees = plans_lib.get_plan_price(plan_slug, billing_cycle)
+    amount_paise = plans_lib.rupees_to_paise(amount_rupees)
+
+    if not razorpay_client.is_configured():
+        raise HTTPException(status_code=500, detail="Payment gateway not configured")
+
+    client = razorpay_client.get_client()
+    order = client.order.create({
+        "amount": amount_paise,
+        "currency": "INR",
+        "notes": {
+            "user_id": user["id"],
+            "plan_slug": plan_slug,
+        }
+    })
+
+    return {
+        "order_id": order["id"],
+        "amount": amount_paise,
+        "currency": "INR",
+        "razorpay_key_id": razorpay_client.key_id(),
+        "plan_name": plan["name"],
+    }
