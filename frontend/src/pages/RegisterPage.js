@@ -1,3 +1,4 @@
+import logo from "../assets/vyastha_logo.jpeg";
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -35,12 +36,16 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex flex-col justify-center items-center p-4 relative font-sans">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center h-12 w-12 rounded-2xl bg-blue-600 text-white font-black text-2xl shadow-lg shadow-blue-500/30">
-            V
-          </div>
+                       <img 
+                        src={logo} 
+                        alt="Vyastha" 
+                        className="h-9 w-9 rounded-lg object-cover shadow-sm"
+                      />
+                    </div>
           <h1 className="text-2xl font-black text-white tracking-tight" data-testid="register-heading">
             Register Your Business
           </h1>
@@ -49,7 +54,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl">
+        <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl shadow-blue-900/20">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
@@ -107,9 +112,9 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Phone Number
-                </label>
+               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+  Phone Number <span className="text-transparent">*</span>
+</label>
                 <input
                   type="text"
                   name="phone"

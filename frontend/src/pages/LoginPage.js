@@ -2,7 +2,8 @@ import logo from "../assets/vyastha_logo.jpeg";
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+// import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck, QrCode, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
@@ -26,21 +27,22 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickDemo = async () => {
-    setLoading(true);
-    try {
-      await demoLogin();
-      toast.success('Logged in as Demo Business Owner!');
-      navigate('/dashboard');
-    } catch (err) {
-      toast.error('Failed to log in with demo account');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // const handleQuickDemo = async () => {
+  //   setLoading(true);
+  //   try {
+  //     await demoLogin();
+  //     toast.success('Logged in as Demo Business Owner!');
+  //     navigate('/dashboard');
+  //   } catch (err) {
+  //     toast.error('Failed to log in with demo account');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    // <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-96 bg-gradient-to-b from-blue-900/20 to-transparent pointer-events-none" />
       <div className="w-full max-w-md relative z-10 space-y-6">
         <div className="text-center space-y-2">
@@ -54,9 +56,9 @@ export default function LoginPage() {
           <h1 className="text-3xl font-extrabold text-white tracking-tight" data-testid="login-heading">
             Vyastha
           </h1>
-          <p className="text-sm text-slate-400">
-            Smart Billing, Invoicing & Inventory for Growing Businesses
-          </p>
+          <p className="text-base text-blue-300 font-bold" style={{ fontFamily: "'Baloo 2', sans-serif" }}>
+ Sab Sambhal Lega!
+</p>
         </div>
 {/* 
         <div className="bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900 border border-blue-500/30 p-4 rounded-xl text-center shadow-lg">
@@ -79,7 +81,9 @@ export default function LoginPage() {
           </button>
         </div> */}
 
-        <div className="bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-2xl backdrop-blur-md">
+        {/* <div className="bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-2xl backdrop-blur-md">
+         */}
+         <div className="bg-slate-900/90 border border-slate-800 p-8 rounded-2xl shadow-2xl shadow-blue-900/20 backdrop-blur-md">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
@@ -94,7 +98,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   data-testid="login-email-input"
                   placeholder="owner@business.com"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none"
                 />
               </div>
             </div>
@@ -112,7 +116,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   data-testid="login-password-input"
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2.5 bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-800/80 border border-slate-700 text-white placeholder-slate-500 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:shadow-lg focus:shadow-blue-500/20 focus:outline-none"
                 />
               </div>
             </div>
@@ -135,13 +139,20 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex justify-center items-center space-x-4 text-[11px] text-slate-500">
-          <span className="flex items-center space-x-1"><ShieldCheck size={14} className="text-emerald-500" /> <span>GST & PAN Compliant</span></span>
-          <span>•</span>
-          <span>Dynamic UPI QRs</span>
-          <span>•</span>
-          <span>Live Stock Deduction</span>
-        </div>
+        <div className="flex flex-wrap justify-center items-center gap-x-5 gap-y-2 text-[11px] text-slate-400 font-medium">
+  <span className="flex items-center space-x-1.5">
+    <ShieldCheck size={14} className="text-emerald-500" />
+    <span>GST & PAN Compliant</span>
+  </span>
+  <span className="flex items-center space-x-1.5">
+    <QrCode size={14} className="text-blue-400" />
+    <span>Dynamic UPI QRs</span>
+  </span>
+  <span className="flex items-center space-x-1.5">
+    <Package size={14} className="text-amber-400" />
+    <span>Live Stock Deduction</span>
+  </span>
+</div>
       </div>
     </div>
   );
