@@ -1,0 +1,12 @@
+Terminal 1 — Backend:
+
+cd backend
+uvicorn server:app --reload --port 8001
+
+
+
+
+Terminal 2 — Frontend :
+
+cd frontend
+yarn start
