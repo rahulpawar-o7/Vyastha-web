@@ -15,6 +15,32 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+const GST_STATES = [
+  { code: "01", name: "Jammu and Kashmir" },
+  { code: "02", name: "Himachal Pradesh" },
+  { code: "03", name: "Punjab" },
+  { code: "04", name: "Chandigarh" },
+  { code: "05", name: "Uttarakhand" },
+  { code: "06", name: "Haryana" },
+  { code: "07", name: "Delhi" },
+  { code: "08", name: "Rajasthan" },
+  { code: "09", name: "Uttar Pradesh" },
+  { code: "10", name: "Bihar" },
+  { code: "19", name: "West Bengal" },
+  { code: "20", name: "Jharkhand" },
+  { code: "21", name: "Odisha" },
+  { code: "22", name: "Chhattisgarh" },
+  { code: "23", name: "Madhya Pradesh" },
+  { code: "24", name: "Gujarat" },
+  { code: "27", name: "Maharashtra" },
+  { code: "29", name: "Karnataka" },
+  { code: "30", name: "Goa" },
+  { code: "32", name: "Kerala" },
+  { code: "33", name: "Tamil Nadu" },
+  { code: "36", name: "Telangana" },
+  { code: "37", name: "Andhra Pradesh" },
+];
+
 const EMPTY_CUSTOMER = {
   company_name: '',
   contact_person: '',
@@ -364,6 +390,24 @@ export default function CustomersPage() {
                     placeholder="27ABCDE1234F1Z5"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono uppercase"
                   />
+                </div>
+                                <div>
+                  <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
+                    State (for GST)
+                  </label>
+                  <select
+                    value={editing.state_code || ''}
+                    onChange={(e) =>
+                      setEditing({ ...editing, state_code: e.target.value })
+                    }
+                    data-testid="customer-state-code-input"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                  >
+                    <option value="">Select State</option>
+                    {GST_STATES.map((s) => (
+                      <option key={s.code} value={s.code}>{s.code} - {s.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
