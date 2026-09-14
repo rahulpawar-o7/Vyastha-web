@@ -48,19 +48,19 @@ export default function Layout({ children }) {
     return () => clearInterval(interval);
   }, [location.pathname]);
 
-  const handleSeedDemo = async () => {
-    setSeeding(true);
-    try {
-      await api.post('/seed/demo-data');
-      toast.success("Realistic demo data loaded successfully!");
-      fetchQuickStats();
-      window.location.reload();
-    } catch (err) {
-      toast.error("Failed to load demo data");
-    } finally {
-      setSeeding(false);
-    }
-  };
+  // const handleSeedDemo = async () => {
+  //   setSeeding(true);
+  //   try {
+  //     await api.post('/seed/demo-data');
+  //     toast.success("Realistic demo data loaded successfully!");
+  //     fetchQuickStats();
+  //     window.location.reload();
+  //   } catch (err) {
+  //     toast.error("Failed to load demo data");
+  //   } finally {
+  //     setSeeding(false);
+  //   }
+  // };
 
   const navLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, testId: 'nav-dashboard-link' },
@@ -203,27 +203,17 @@ export default function Layout({ children }) {
           </nav>
         </div>
 
-        {/* Bottom Actions */}
-        <div className="p-3 border-t border-slate-800 space-y-2">
-          <button
-            onClick={handleSeedDemo}
-            disabled={seeding}
-            data-testid="load-demo-data-btn"
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
-          >
-            <Sparkles size={14} />
-            <span>{seeding ? 'Populating...' : 'Load Sample Data'}</span>
-          </button>
-
-          <button
-            onClick={logout}
-            data-testid="logout-button"
-            className="w-full flex items-center space-x-3 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
-          >
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
-        </div>
+       {/* Bottom Actions */}
+<div className="p-3 border-t border-slate-800">
+  <button
+    onClick={logout}
+    data-testid="logout-button"
+    className="w-full flex items-center justify-center space-x-3 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+  >
+    <LogOut size={16} />
+    <span>Sign Out</span>
+  </button>
+</div>
       </aside>
 
       {/* Main Content Area */}

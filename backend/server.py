@@ -1416,170 +1416,169 @@ async def seed_demo_data(user: dict = Depends(get_current_user)):
     for c in sample_customers:
         await db.customers.update_one({"company_name": c["company_name"], "user_id": user_id}, {"$set": c}, upsert=True)
         
-    # 3. Seed Products (including some with low stock to show alerts)
-    sample_products = [
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "name": "Industrial Thermal Label Rolls (100x150mm)",
-            "sku": "PRD-LBL-001",
-            "category": "Packaging",
-            "unit": "box",
-            "unit_price": 1250.0,
-            "stock_quantity": 48,
-            "low_stock_threshold": 15,
-            "description": "Premium top-coated direct thermal barcode shipping labels.",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "name": "Heavy Duty Steel Pallet Strapping (19mm)",
-            "sku": "PRD-STRP-002",
-            "category": "Hardware",
-            "unit": "roll",
-            "unit_price": 3400.0,
-            "stock_quantity": 4,  # LOW STOCK
-            "low_stock_threshold": 10,
-            "description": "High tensile cold-rolled steel strapping for pallet stabilization.",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "name": "Wireless 2D Handheld QR/Barcode Scanner",
-            "sku": "PRD-SCN-003",
-            "category": "Electronics",
-            "unit": "pc",
-            "unit_price": 4850.0,
-            "stock_quantity": 3,  # LOW STOCK
-            "low_stock_threshold": 8,
-            "description": "Long range Bluetooth 5.0 industrial warehouse scanner.",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "name": "Corrugated 5-Ply Shipping Box (18x12x12 inch)",
-            "sku": "PRD-BOX-004",
-            "category": "Packaging",
-            "unit": "pc",
-            "unit_price": 85.0,
-            "stock_quantity": 250,
-            "low_stock_threshold": 50,
-            "description": "Heavy-duty double wall corrugated carton for bulk transit.",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }
-    ]
-    for p in sample_products:
-        await db.products.update_one({"sku": p["sku"], "user_id": user_id}, {"$set": p}, upsert=True)
+    # # 3. Seed Products (including some with low stock to show alerts)
+    # sample_products = [
+    #     {
+    #         "id": str(uuid.uuid4()),
+    #         "user_id": user_id,
+    #         "name": "Industrial Thermal Label Rolls (100x150mm)",
+    #         "sku": "PRD-LBL-001",
+    #         "category": "Packaging",
+    #         "unit": "box",
+    #         "unit_price": 1250.0,
+    #         "stock_quantity": 48,
+    #         "low_stock_threshold": 15,
+    #         "description": "Premium top-coated direct thermal barcode shipping labels.",
+    #         "created_at": datetime.now(timezone.utc).isoformat(),
+    #         "updated_at": datetime.now(timezone.utc).isoformat()
+    #     },
+    #     {
+    #         "id": str(uuid.uuid4()),
+    #         "user_id": user_id,
+    #         "name": "Heavy Duty Steel Pallet Strapping (19mm)",
+    #         "sku": "PRD-STRP-002",
+    #         "category": "Hardware",
+    #         "unit": "roll",
+    #         "unit_price": 3400.0,
+    #         "stock_quantity": 4,  # LOW STOCK
+    #         "low_stock_threshold": 10,
+    #         "description": "High tensile cold-rolled steel strapping for pallet stabilization.",
+    #         "created_at": datetime.now(timezone.utc).isoformat(),
+    #         "updated_at": datetime.now(timezone.utc).isoformat()
+    #     },
+    #     {
+    #         "id": str(uuid.uuid4()),
+    #         "user_id": user_id,
+    #         "name": "Wireless 2D Handheld QR/Barcode Scanner",
+    #         "sku": "PRD-SCN-003",
+    #         "category": "Electronics",
+    #         "unit": "pc",
+    #         "unit_price": 4850.0,
+    #         "stock_quantity": 3,  # LOW STOCK
+    #         "low_stock_threshold": 8,
+    #         "description": "Long range Bluetooth 5.0 industrial warehouse scanner.",
+    #         "created_at": datetime.now(timezone.utc).isoformat(),
+    #         "updated_at": datetime.now(timezone.utc).isoformat()
+    #     },
+    #     {
+    #         "id": str(uuid.uuid4()),
+    #         "user_id": user_id,
+    #         "name": "Corrugated 5-Ply Shipping Box (18x12x12 inch)",
+    #         "sku": "PRD-BOX-004",
+    #         "category": "Packaging",
+    #         "unit": "pc",
+    #         "unit_price": 85.0,
+    #         "stock_quantity": 250,
+    #         "low_stock_threshold": 50,
+    #         "description": "Heavy-duty double wall corrugated carton for bulk transit.",
+    #         "created_at": datetime.now(timezone.utc).isoformat(),
+    #         "updated_at": datetime.now(timezone.utc).isoformat()
+    #     }
+    # ]
+    # for p in sample_products:
+    #     await db.products.update_one({"sku": p["sku"], "user_id": user_id}, {"$set": p}, upsert=True)
         
-    # 4. Seed Invoices
-    inv_1_num = "INV-2026-0001"
-    inv_1_items = [
-        {"description": "Industrial Thermal Label Rolls (100x150mm)", "quantity": 10, "unit": "box", "pieces": 10, "unit_price": 1250.0, "amount": 12500.0},
-        {"description": "Wireless 2D Handheld QR/Barcode Scanner", "quantity": 2, "unit": "pc", "pieces": 2, "unit_price": 4850.0, "amount": 9700.0}
-    ]
-    subtotal_1 = 22200.0
-    tax_1 = 3996.0  # 18%
-    total_1 = 26196.0
+    # # 4. Seed Invoices
+    # inv_1_num = "INV-2026-0001"
+    # inv_1_items = [
+    #     {"description": "Industrial Thermal Label Rolls (100x150mm)", "quantity": 10, "unit": "box", "pieces": 10, "unit_price": 1250.0, "amount": 12500.0},
+    #     {"description": "Wireless 2D Handheld QR/Barcode Scanner", "quantity": 2, "unit": "pc", "pieces": 2, "unit_price": 4850.0, "amount": 9700.0}
+    # ]
+    # subtotal_1 = 22200.0
+    # tax_1 = 3996.0  # 18%
+    # total_1 = 26196.0
     
-    inv_1 = {
-        "id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "invoice_number": inv_1_num,
-        "invoice_date": today_str,
-        "shipping_date": today_str,
-        "customer_id": "CUST-101",
-        "vehicle_number": "MH-04-AB-9821",
-        "reference_quotation_number": "",
-        "seller_details": company_profile,
-        "buyer_details": sample_customers[0],
-        "line_items": inv_1_items,
-        "subtotal": subtotal_1,
-        "tax_rate": 18.0,
-        "tax_amount": tax_1,
-        "discount_type": "amount",
-        "discount_value": 0.0,
-        "discount_amount": 0.0,
-        "total_amount": total_1,
-        "terms_and_conditions": company_profile["default_terms"],
-        "bank_details": company_profile["bank_details"],
-        "signature_url": "",
-        "notes": "Thank you for your business! Goods dispatched via SafeXpress.",
-        "status": "finalized",
-        "payment_status": "paid",
-        "amount_paid": total_1,
-        "balance_due": 0.0,
-        "upi_qr_data": build_upi_qr_string(company_profile["bank_details"]["upi_id"], company_profile["company_name"], total_1, f"Invoice {inv_1_num}"),
-        "created_date_str": today_str,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.invoices.update_one({"invoice_number": inv_1_num, "user_id": user_id}, {"$set": inv_1}, upsert=True)
+    # inv_1 = {
+    #     "id": str(uuid.uuid4()),
+    #     "user_id": user_id,
+    #     "invoice_number": inv_1_num,
+    #     "invoice_date": today_str,
+    #     "shipping_date": today_str,
+    #     "customer_id": "CUST-101",
+    #     "vehicle_number": "MH-04-AB-9821",
+    #     "reference_quotation_number": "",
+    #     "seller_details": company_profile,
+    #     "buyer_details": sample_customers[0],
+    #     "line_items": inv_1_items,
+    #     "subtotal": subtotal_1,
+    #     "tax_rate": 18.0,
+    #     "tax_amount": tax_1,
+    #     "discount_type": "amount",
+    #     "discount_value": 0.0,
+    #     "discount_amount": 0.0,
+    #     "total_amount": total_1,
+    #     "terms_and_conditions": company_profile["default_terms"],
+    #     "bank_details": company_profile["bank_details"],
+    #     "signature_url": "",
+    #     "notes": "Thank you for your business! Goods dispatched via SafeXpress.",
+    #     "status": "finalized",
+    #     "payment_status": "paid",
+    #     "amount_paid": total_1,
+    #     "balance_due": 0.0,
+    #     "upi_qr_data": build_upi_qr_string(company_profile["bank_details"]["upi_id"], company_profile["company_name"], total_1, f"Invoice {inv_1_num}"),
+    #     "created_date_str": today_str,
+    #     "created_at": datetime.now(timezone.utc).isoformat(),
+    #     "updated_at": datetime.now(timezone.utc).isoformat()
+    # }
+    # await db.invoices.update_one({"invoice_number": inv_1_num, "user_id": user_id}, {"$set": inv_1}, upsert=True)
     
-    # Record payment for invoice 1
-    pay_1 = {
-        "id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "invoice_id": inv_1["id"],
-        "invoice_number": inv_1_num,
-        "customer_name": sample_customers[0]["company_name"],
-        "amount": total_1,
-        "payment_date": today_str,
-        "payment_method": "UPI",
-        "transaction_ref": "UPI/26196/SBIN88921102",
-        "notes": "Received instant settlement via PhonePe UPI",
-        "status": "successful",
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.payments.update_one({"invoice_number": inv_1_num, "user_id": user_id}, {"$set": pay_1}, upsert=True)
+    # # Record payment for invoice 1
+    # pay_1 = {
+    #     "id": str(uuid.uuid4()),
+    #     "user_id": user_id,
+    #     "invoice_id": inv_1["id"],
+    #     "invoice_number": inv_1_num,
+    #     "customer_name": sample_customers[0]["company_name"],
+    #     "amount": total_1,
+    #     "payment_date": today_str,
+    #     "payment_method": "UPI",
+    #     "transaction_ref": "UPI/26196/SBIN88921102",
+    #     "notes": "Received instant settlement via PhonePe UPI",
+    #     "status": "successful",
+    #     "created_at": datetime.now(timezone.utc).isoformat()
+    # }
+    # await db.payments.update_one({"invoice_number": inv_1_num, "user_id": user_id}, {"$set": pay_1}, upsert=True)
     
-    # Quotation
-    quo_1_num = "QUO-2026-0001"
-    quo_1 = {
-        "id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "quotation_number": quo_1_num,
-        "quotation_date": today_str,
-        "valid_until": (date.today() + timedelta(days=14)).isoformat(),
-        "customer_id": "CUST-102",
-        "vehicle_number": "",
-        "seller_details": company_profile,
-        "buyer_details": sample_customers[1],
-        "line_items": [
-            {"description": "Corrugated 5-Ply Shipping Box (18x12x12 inch)", "quantity": 100, "unit": "pc", "pieces": 100, "unit_price": 85.0, "amount": 8500.0},
-            {"description": "Heavy Duty Steel Pallet Strapping (19mm)", "quantity": 2, "unit": "roll", "pieces": 2, "unit_price": 3400.0, "amount": 6800.0}
-        ],
-        "subtotal": 15300.0,
-        "tax_rate": 18.0,
-        "tax_amount": 2754.0,
-        "discount_type": "percentage",
-        "discount_value": 5.0,
-        "discount_amount": 765.0,
-        "total_amount": 17289.0,
-        "terms_and_conditions": company_profile["default_terms"],
-        "bank_details": company_profile["bank_details"],
-        "signature_url": "",
-        "notes": "5% Volume Discount applied for quarterly agreement.",
-        "status": "sent",
-        "upi_qr_data": build_upi_qr_string(company_profile["bank_details"]["upi_id"], company_profile["company_name"], 17289.0, f"Quote {quo_1_num}"),
-        "created_date_str": today_str,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.quotations.update_one({"quotation_number": quo_1_num, "user_id": user_id}, {"$set": quo_1}, upsert=True)
+    # # Quotation
+    # quo_1_num = "QUO-2026-0001"
+    # quo_1 = {
+    #     "id": str(uuid.uuid4()),
+    #     "user_id": user_id,
+    #     "quotation_number": quo_1_num,
+    #     "quotation_date": today_str,
+    #     "valid_until": (date.today() + timedelta(days=14)).isoformat(),
+    #     "customer_id": "CUST-102",
+    #     "vehicle_number": "",
+    #     "seller_details": company_profile,
+    #     "buyer_details": sample_customers[1],
+    #     "line_items": [
+    #         {"description": "Corrugated 5-Ply Shipping Box (18x12x12 inch)", "quantity": 100, "unit": "pc", "pieces": 100, "unit_price": 85.0, "amount": 8500.0},
+    #         {"description": "Heavy Duty Steel Pallet Strapping (19mm)", "quantity": 2, "unit": "roll", "pieces": 2, "unit_price": 3400.0, "amount": 6800.0}
+    #     ],
+    #     "subtotal": 15300.0,
+    #     "tax_rate": 18.0,
+    #     "tax_amount": 2754.0,
+    #     "discount_type": "percentage",
+    #     "discount_value": 5.0,
+    #     "discount_amount": 765.0,
+    #     "total_amount": 17289.0,
+    #     "terms_and_conditions": company_profile["default_terms"],
+    #     "bank_details": company_profile["bank_details"],
+    #     "signature_url": "",
+    #     "notes": "5% Volume Discount applied for quarterly agreement.",
+    #     "status": "sent",
+    #     "upi_qr_data": build_upi_qr_string(company_profile["bank_details"]["upi_id"], company_profile["company_name"], 17289.0, f"Quote {quo_1_num}"),
+    #     "created_date_str": today_str,
+    #     "created_at": datetime.now(timezone.utc).isoformat(),
+    #     "updated_at": datetime.now(timezone.utc).isoformat()
+    # }
+    # await db.quotations.update_one({"quotation_number": quo_1_num, "user_id": user_id}, {"$set": quo_1}, upsert=True)
     
-    return {"message": "Demo data populated successfully with realistic business profiles, inventory, invoices, and payments!"}
+    # return {"message": "Demo data populated successfully with realistic business profiles, inventory, invoices, and payments!"}
 
 
 # Include the router
 app.include_router(api_router)
-
 # Root-level health endpoints for deployment probe
 @app.get("/health")
 async def health_check():
