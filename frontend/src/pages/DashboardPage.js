@@ -15,10 +15,14 @@ import {
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
+import WelcomeNamaste from '../components/WelcomeNamaste';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const { user } = useAuth();
 
   const fetchDashboard = async () => {
     try {
@@ -31,9 +35,16 @@ export default function DashboardPage() {
     }
   };
 
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+   useEffect(() => {
+  fetchDashboard();
+}, []);
+
+useEffect(() => {
+  if (sessionStorage.getItem('vyastha_show_welcome')) {
+    setShowWelcome(true);
+    sessionStorage.removeItem('vyastha_show_welcome');
+  }
+}, []);
 
   if (loading) {
     return (
@@ -207,6 +218,12 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+      {showWelcome && (
+        <WelcomeNamaste
+          userName={user?.name || ''}
+          onComplete={() => setShowWelcome(false)}
+        />
+      )}
     </div>
   );
 }
