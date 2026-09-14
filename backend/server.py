@@ -849,26 +849,42 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
     inv_number = data.invoice_number
     if not inv_number:
         inv_number = await get_next_sequence(user_id, "invoice", prefix)
-        
+
     # Real-time calculation integrity check
     line_items_data = [item.model_dump() for item in data.line_items]
-    calc_subtotal = sum(float(item.get("quantity", 0)) * float(item.get("unit_price", 0)) for item in line_items_data)
-    
+
+    calc_subtotal = sum(
+        float(item.get("quantity", 0)) * float(item.get("unit_price", 0))
+        for item in line_items_data
+    )
+
     discount_amt = 0.0
+
     if data.discount_type == "percentage":
         discount_amt = (calc_subtotal * data.discount_value) / 100.0
     else:
         discount_amt = data.discount_value
+
     discount_amt = max(0.0, min(discount_amt, calc_subtotal))
-    
+
     taxable = max(0.0, calc_subtotal - discount_amt)
+
     calc_tax_amt = (taxable * data.tax_rate) / 100.0
+
     calc_total = taxable + calc_tax_amt
+
     calc_amount_in_words = amount_in_words(calc_total)
+
     seller_state = (data.seller_details or profile).get("state_code", "")
-    buyer_state = buyer.get("state_code", "")
-    gst_split = calculate_gst_split(calc_tax_amt, seller_state, buyer_state)
-    
+
+    buyer_state = (data.buyer_details or {}).get("state_code", "")
+
+    gst_split = calculate_gst_split(
+        calc_tax_amt,
+        seller_state,
+        buyer_state
+    )
+        
     # Generate Dynamic UPI Payment QR Data
     seller = data.seller_details or profile
     upi_id = seller.get("bank_details", {}).get("upi_id") or profile.get("bank_details", {}).get("upi_id") or "business@upi"
