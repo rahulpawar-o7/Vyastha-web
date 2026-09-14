@@ -5,23 +5,25 @@ import { useAuth } from '../context/AuthContext';
 // import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Lock, Mail, Building2, Sparkles, ArrowRight, ShieldCheck, QrCode, Package } from 'lucide-react';
 import { toast } from 'sonner';
-import WelcomeNamaste from '../components/WelcomeNamaste';
+// import WelcomeNamaste from '../components/WelcomeNamaste';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, demoLogin, user } = useAuth();
+  const { login, demoLogin } = useAuth();
+  // const [showWelcome, setShowWelcome] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      await login(email, password);
-      toast.success('Welcome back!');
-      navigate('/dashboard');
-    } catch (err) {
+  try {
+  await login(email, password);
+  toast.success('Welcome back!');
+  sessionStorage.setItem('vyastha_show_welcome', '1');
+  navigate('/dashboard');
+} catch (err) {
       toast.error(err.response?.data?.detail || 'Invalid login credentials');
     } finally {
       setLoading(false);
@@ -120,6 +122,13 @@ export default function LoginPage() {
   </span>
 </div>
       </div>
+      {/* {showWelcome && (
+        <WelcomeNamaste
+          userName={user?.name || ''}
+          onComplete={() => navigate('/dashboard')}
+        />
+      )} */}
     </div>
+    
   );
 }
