@@ -876,14 +876,13 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
     calc_amount_in_words = amount_in_words(calc_total)
 
     seller_state = (data.seller_details or profile).get("state_code", "")
-
     buyer_state = (data.buyer_details or {}).get("state_code", "")
 
     gst_split = calculate_gst_split(
         calc_tax_amt,
         seller_state,
         buyer_state
-    )
+)
         
     # Generate Dynamic UPI Payment QR Data
     seller = data.seller_details or profile
