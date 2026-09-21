@@ -67,13 +67,14 @@ FALLBACK_PLAN_SLUG = "free"
 PLAN_DEFAULTS: list[dict[str, Any]] = [
     {
         "slug": "free",
-        "name": "Free",
-        "description": "Get started with core billing for a single user.",
-        "monthly_price": 0,
+        "name": "Vyastha",
+        "description": "Core Vyastha features with a 3-month free trial, then ₹49/month.",
+        "monthly_price": 49,
         "yearly_price": 0,
         "currency": "INR",
         "active": True,
         "highlight": False,
+        "trial_days": 90,
 
         "features": {
             "invoicing": True,
@@ -108,12 +109,13 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
     {
         "slug": "basic",
         "name": "Basic",
-        "description": "Expanded limits for a growing small business.",
+        "description": "Legacy plan.",
         "monthly_price": 499,
         "yearly_price": 4990,
         "currency": "INR",
-        "active": True,
+        "active": False,
         "highlight": False,
+        "trial_days": 0,
 
         "features": {
             "invoicing": True,
@@ -137,23 +139,20 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
         },
 
         "feature_list": [
-            "Up to 500 invoices / month",
-            "Up to 1,000 products",
-            "Up to 3 team members",
-            "Payment tracking & reminders",
-            "Email support",
+            "Legacy plan",
         ],
     },
 
     {
         "slug": "pro",
-        "name": "Pro",
-        "description": "Advanced analytics and smart inventory for scaling teams.",
-        "monthly_price": 1299,
-        "yearly_price": 12990,
+        "name": "Vyastha Pro",
+        "description": "Advanced Vyastha features with a 3-day free trial, then ₹99/month.",
+        "monthly_price": 99,
+        "yearly_price": 0,
         "currency": "INR",
         "active": True,
         "highlight": True,
+        "trial_days": 3,
 
         "features": {
             "invoicing": True,
@@ -181,7 +180,7 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
             "Up to 10,000 products",
             "Up to 10 team members",
             "Advanced analytics & reports",
-            "Advanced inventory (batches, low-stock alerts)",
+            "Advanced inventory",
             "Smart billing suggestions",
         ],
     },
@@ -189,14 +188,13 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
     {
         "slug": "business",
         "name": "Business",
-        "description": (
-            "Everything in Pro plus unlimited scale and priority support."
-        ),
+        "description": "Legacy plan.",
         "monthly_price": 2999,
         "yearly_price": 29990,
         "currency": "INR",
-        "active": True,
+        "active": False,
         "highlight": False,
+        "trial_days": 0,
 
         "features": {
             feature: True for feature in FEATURE_KEYS
@@ -210,12 +208,7 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
         },
 
         "feature_list": [
-            "Unlimited invoices & products",
-            "Unlimited team members",
-            "All Pro features",
-            "API access",
-            "Priority support",
-            "Dedicated onboarding",
+            "Legacy plan",
         ],
     },
 ]
