@@ -23,6 +23,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
   const { user } = useAuth();
+  const [entitlements, setEntitlements] = useState(null);
+  const [entitlementsLoading, setEntitlementsLoading] = useState(true);
 
   const fetchDashboard = async () => {
     try {
@@ -35,7 +37,7 @@ export default function DashboardPage() {
     }
   };
 
-   useEffect(() => {
+useEffect(() => {
   fetchDashboard();
 }, []);
 
@@ -46,16 +48,68 @@ useEffect(() => {
   }
 }, []);
 
-  if (loading) {
-    return (
-      <div className="py-20 flex justify-center text-slate-500 font-medium">
-        Loading workspace analytics...
-      </div>
-    );
-  }
+useEffect(() => {
+  const fetchEntitlements = async () => {
+    try {
+      const res = await api.get('/auth/entitlements');
+      setEntitlements(res.data);
+    } catch (e) {
+      console.error('Failed to load subscription details', e);
+    } finally {
+      setEntitlementsLoading(false);
+    }
+  };
+
+  fetchEntitlements();
+}, []);
+
+const trialDays = entitlements?.trial_days ?? 0;
+
+const trialEnd = entitlements?.current_period_end
+  ? new Date(entitlements.current_period_end)
+  : null;
+
+const remainingDays = trialEnd
+  ? Math.max(
+      0,
+      Math.ceil((trialEnd - new Date()) / (1000 * 60 * 60 * 24))
+    )
+  : 0;
+
+const isTrial = entitlements?.status === 'trialing';
 
   return (
     <div className="space-y-6">
+      {!entitlementsLoading && entitlements && isTrial && (
+  <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      
+      <div>
+        <p className="text-xs font-bold uppercase tracking-wider text-blue-600">
+          {entitlements.plan_name} Trial
+        </p>
+
+        <h3 className="mt-1 text-xl font-black text-slate-900">
+          {trialDays} days trial
+        </h3>
+
+        <p className="mt-1 text-sm text-slate-500">
+          {remainingDays} days remaining
+        </p>
+      </div>
+
+      <div className="text-right">
+        <div className="text-2xl font-black text-blue-600">
+          {remainingDays}
+        </div>
+        <p className="text-[11px] text-slate-400 uppercase font-bold">
+          Days Left
+        </p>
+      </div>
+
+    </div>
+  </div>
+)}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight" data-testid="dashboard-title">

@@ -17,7 +17,7 @@ Security:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -36,6 +36,7 @@ from models.billing import (
     EntitlementsOut,
     LoginRequest,
     SignupRequest,
+    Subscription,
     UserOut,
 )
 
@@ -190,6 +191,56 @@ async def signup(
         )
         raise
 
+    # -----------------------------------------------------------------------
+    # CREATE DEFAULT VYASTHA TRIAL SUBSCRIPTION
+    # -----------------------------------------------------------------------
+
+    free_plan = await db.plans.find_one(
+        {"slug": "free"}
+    )
+
+    if not free_plan or not free_plan.get("id"):
+        # Roll back the newly created user and business because
+        # the default subscription plan is not configured.
+        await db.users.delete_one(
+            {"id": user_id}
+        )
+        await db.businesses.delete_one(
+            {"id": business_id}
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Default Vyastha plan is not configured.",
+        )
+
+    trial_end = now + timedelta(
+        days=int(
+            free_plan.get(
+                "trial_days",
+                90,
+            )
+        )
+    )
+
+    subscription = Subscription(
+        user_id=user_id,
+        business_id=business_id,
+        plan_id=str(
+            free_plan["id"]
+        ),
+        plan_slug="free",
+        billing_cycle="monthly",
+        status="trialing",
+        amount=0,
+        currency="INR",
+        current_period_start=now,
+        current_period_end=trial_end,
+    )
+
+    await db.subscriptions.insert_one(
+        subscription.model_dump()
+    )
     # -----------------------------------------------------------------------
     # CREATE SESSION
     # -----------------------------------------------------------------------
