@@ -98,7 +98,7 @@ async def get_plan(
 # ---------------------------------------------------------------------------
 
 async def get_business_subscription(
-    user_id: str,
+    business_id: str,
 ) -> dict[str, Any] | None:
     """
     Return the newest active subscription record for a business.
@@ -108,7 +108,7 @@ async def get_business_subscription(
     """
     doc = await db.subscriptions.find_one(
         {
-            "user_id": user_id,
+            "business_id": business_id,
             "status": {
                 "$ne": "superseded"
             },
@@ -132,7 +132,7 @@ async def get_business_subscription(
 # ---------------------------------------------------------------------------
 
 async def resolve_entitlements(
-    user_id: str,
+    business_id: str,
 ) -> dict[str, Any]:
     """
     Resolve the effective subscription plan for a business.
@@ -147,8 +147,8 @@ async def resolve_entitlements(
     """
 
     subscription = await get_business_subscription(
-        user_id
-    )
+    business_id
+)
 
     now = datetime.now(timezone.utc)
 
@@ -295,7 +295,7 @@ async def resolve_entitlements(
 # ---------------------------------------------------------------------------
 
 async def has_feature(
-    user_id: str,
+    business_id: str,
     feature: str,
 ) -> bool:
     """
@@ -304,7 +304,7 @@ async def has_feature(
     normalized_feature = feature.strip().lower()
 
     entitlements = await resolve_entitlements(
-        user_id
+    business_id
     )
 
     return bool(
@@ -342,16 +342,16 @@ def require_feature(
         user: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
 
-        user_id = user.get("id")
+        business_id = user.get("business_id")
 
-        if not user_id:
+        if not business_id:
             raise HTTPException(
                 status_code=401,
                 detail="Business context is missing.",
             )
 
         allowed = await has_feature(
-            user_id,
+            business_id,
             normalized_feature,
         )
 
@@ -378,7 +378,7 @@ def require_feature(
 # ---------------------------------------------------------------------------
 
 async def get_limit(
-    user_id: str,
+    business_id: str,
     limit_key: str,
 ) -> int:
     """
@@ -387,7 +387,7 @@ async def get_limit(
     -1 means unlimited.
     """
     entitlements = await resolve_entitlements(
-        user_id
+        business_id
     )
 
     return int(
@@ -399,7 +399,7 @@ async def get_limit(
 
 
 async def check_limit(
-    user_id: str,
+    business_id: str,
     limit_key: str,
     current_usage: int,
 ) -> bool:
@@ -417,7 +417,7 @@ async def check_limit(
         return False
 
     limit = await get_limit(
-        user_id,
+        business_id,
         limit_key,
     )
 
@@ -438,19 +438,19 @@ def require_limit(
     """
 
     async def _guard(
-        user: dict[str, Any] =Depends(get_current_user) ,
+        user: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
 
-        user_id = user.get("id")
+        business_id = user.get("business_id")
 
-        if not user_id:
+        if not business_id:
             raise HTTPException(
                 status_code=401,
                 detail="Business context is missing.",
             )
 
         limit = await get_limit(
-            user_id,
+            business_id,
             limit_key,
         )
 
