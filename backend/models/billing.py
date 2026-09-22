@@ -82,6 +82,7 @@ class Plan(BaseModel):
     feature_list: list[str] = Field(default_factory=list)
 
     highlight: bool = False
+    trial_days: int = 0
     active: bool = True
     rank: int = Field(default=0, ge=0)
 
