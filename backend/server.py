@@ -12,6 +12,7 @@ from lib.amount_words import amount_in_words
 from bson import ObjectId
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
+# from routers.auth import router as auth_router
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
@@ -21,6 +22,7 @@ from lib import razorpay_client
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+# from routers.auth import router as auth_router
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
@@ -460,7 +462,29 @@ async def login(input: UserLogin, response: Response):
     user = await db.users.find_one({"email": email_clean})
     if not user or not verify_password(input.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    if not user.get("first_login_at"):
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "first_login_at": now,
+                    "last_login_at": now,
+                }
+            },
+        )
+    else:
+        await db.users.update_one(
+            {"_id": user["_id"]},
+            {
+                "$set": {
+                    "last_login_at": now,
+                }
+            },
+        )
+
     user_id = user.get("id") or str(user["_id"])
     access_token = create_access_token(user_id, email_clean)
     refresh_token = create_refresh_token(user_id)
@@ -1577,7 +1601,11 @@ async def seed_demo_data(user: dict = Depends(get_current_user)):
 
 
 # Include the router
+from routers.auth import router as auth_router
+
 app.include_router(api_router)
+app.include_router(auth_router, prefix="/api")
+# app.include_router(auth_router, prefix="/api")
 # Root-level health endpoints for deployment probe
 @app.get("/health")
 async def health_check():
@@ -1591,8 +1619,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=[
-        "https://vyastha-web-eight.vercel.app"
-    ],
+    "https://vyastha-web-eight.vercel.app",
+    "http://localhost:3000",
+],
     allow_methods=["*"],
     allow_headers=["*"],
 )

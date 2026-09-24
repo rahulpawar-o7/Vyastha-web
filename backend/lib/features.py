@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from server import get_current_user
+# from server import get_current_userpython server.py
 
 from fastapi import Depends, HTTPException
 
@@ -287,6 +287,9 @@ async def resolve_entitlements(
         "features": plan.get("features", {}),
         "limits": plan.get("limits", {}),
         "in_grace_period": in_grace_period,
+        "trial_days": subscription.get("trial_days"),
+        "current_period_start": subscription.get("current_period_start"),
+        "current_period_end": subscription.get("current_period_end"),
     }
 
 

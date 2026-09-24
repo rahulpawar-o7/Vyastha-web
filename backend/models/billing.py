@@ -311,6 +311,9 @@ class EntitlementsOut(BaseModel):
 
     in_grace_period: bool = False
 
+    trial_days: int | None = None
+    current_period_start: datetime | None = None
+    current_period_end: datetime | None = None
 
 class SubscriptionOut(BaseModel):
     """Current subscription information returned to the frontend."""

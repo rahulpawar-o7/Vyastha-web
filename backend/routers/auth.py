@@ -24,10 +24,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from lib.db import db
 from lib.features import resolve_entitlements
-from lib.security import (
-    create_session,
-    current_user,
-    destroy_session,
+from lib.auth import (
+    create_access_token,
+    create_refresh_token,
+    get_current_user,
     hash_password,
     verify_password,
 )
@@ -46,7 +46,63 @@ router = APIRouter(
     tags=["auth"],
 )
 
+async def create_session(
+    response: Response,
+    user_id: str,
+) -> None:
+    user = await db.users.find_one({"id": user_id})
 
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found",
+        )
+
+    email = user.get("email", "")
+
+    access_token = create_access_token(
+        user_id,
+        email,
+    )
+
+    refresh_token = create_refresh_token(
+        user_id,
+    )
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400 * 7,
+        path="/",
+    )
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400 * 30,
+        path="/",
+    )
+
+
+async def destroy_session(
+    request: Request,
+    response: Response,
+) -> None:
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+    )
+
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+    )
 # ---------------------------------------------------------------------------
 # USER RESPONSE
 # ---------------------------------------------------------------------------
@@ -224,19 +280,25 @@ async def signup(
     )
 
     subscription = Subscription(
-        user_id=user_id,
-        business_id=business_id,
-        plan_id=str(
-            free_plan["id"]
-        ),
-        plan_slug="free",
-        billing_cycle="monthly",
-        status="trialing",
-        amount=0,
-        currency="INR",
-        current_period_start=now,
-        current_period_end=trial_end,
-    )
+    user_id=user_id,
+    business_id=business_id,
+    plan_id=str(
+        free_plan["id"]
+    ),
+    plan_slug="free",
+    billing_cycle="monthly",
+    status="trialing",
+    amount=0,
+    currency="INR",
+    trial_days=int(
+        free_plan.get(
+            "trial_days",
+            90,
+        )
+    ),
+    current_period_start=now,
+    current_period_end=trial_end,
+)
 
     await db.subscriptions.insert_one(
         subscription.model_dump()
@@ -350,7 +412,7 @@ async def logout(
 )
 async def me(
     user: dict[str, Any] = Depends(
-        current_user
+        get_current_user
     ),
 ) -> UserOut:
     """
@@ -372,7 +434,7 @@ async def me(
 )
 async def entitlements(
     user: dict[str, Any] = Depends(
-        current_user
+        get_current_user
     ),
 ) -> EntitlementsOut:
     """
