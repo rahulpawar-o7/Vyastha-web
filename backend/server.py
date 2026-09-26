@@ -12,13 +12,16 @@ from lib.amount_words import amount_in_words
 from bson import ObjectId
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
-# from routers.auth import router as auth_router
+from routers.auth import router as auth_router
+from routers.subscriptions import router as subscriptions_router
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 
 from lib import plans as plans_lib
 from lib import razorpay_client
+from lib.features import require_feature
+from lib.features import resolve_entitlements
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -552,6 +555,20 @@ async def get_me(user: dict = Depends(get_current_user)):
         "role": user.get("role", "business_owner")
     }
 
+@api_router.get("/auth/entitlements")
+async def get_auth_entitlements(
+    user: dict = Depends(get_current_user),
+):
+    business_id = user.get("business_id")
+
+    if not business_id:
+        raise HTTPException(
+            status_code=401,
+            detail="Business context is missing.",
+        )
+
+    return await resolve_entitlements(business_id)
+
 @api_router.post("/auth/logout")
 async def logout(response: Response):
     response.delete_cookie(key="access_token", path="/")
@@ -673,13 +690,21 @@ async def delete_customer(customer_id: str, user: dict = Depends(get_current_use
 # Products & Inventory Module
 # ==========================================
 @api_router.get("/products")
-async def get_products(user: dict = Depends(get_current_user)):
+
+async def get_products(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("products")),
+):
     user_id = user.get("id") or str(user["_id"])
     products = await db.products.find({"user_id": user_id}, {"_id": 0}).sort("name", 1).to_list(1000)
     return products
 
 @api_router.post("/products")
-async def create_product(data: ProductCreate, user: dict = Depends(get_current_user)):
+async def create_product(
+    data: ProductCreate,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("products")),
+):
     user_id = user.get("id") or str(user["_id"])
     prod_count = await db.products.count_documents({"user_id": user_id})
     sku = data.sku or f"SKU-{prod_count + 1:04d}"
@@ -718,7 +743,12 @@ async def create_product(data: ProductCreate, user: dict = Depends(get_current_u
     return prod_doc
 
 @api_router.put("/products/{product_id}")
-async def update_product(product_id: str, data: ProductCreate, user: dict = Depends(get_current_user)):
+async def update_product(
+    product_id: str,
+    data: ProductCreate,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("products")),
+):
     user_id = user.get("id") or str(user["_id"])
     update_dict = data.model_dump(exclude_unset=True)
     update_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -734,13 +764,22 @@ async def update_product(product_id: str, data: ProductCreate, user: dict = Depe
     return updated
 
 @api_router.delete("/products/{product_id}")
-async def delete_product(product_id: str, user: dict = Depends(get_current_user)):
+async def delete_product(
+    product_id: str,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("products")),
+):
     user_id = user.get("id") or str(user["_id"])
     await db.products.delete_one({"id": product_id, "user_id": user_id})
     return {"message": "Product deleted"}
 
 @api_router.post("/products/{product_id}/adjust-stock")
-async def adjust_stock(product_id: str, adjustment: StockAdjustment, user: dict = Depends(get_current_user)):
+async def adjust_stock(
+    product_id: str,
+    adjustment: StockAdjustment,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("inventory")),
+):
     user_id = user.get("id") or str(user["_id"])
     product = await db.products.find_one({"id": product_id, "user_id": user_id})
     if not product:
@@ -781,7 +820,10 @@ async def adjust_stock(product_id: str, adjustment: StockAdjustment, user: dict 
     }
 
 @api_router.get("/inventory/alerts")
-async def get_inventory_alerts(user: dict = Depends(get_current_user)):
+async def get_inventory_alerts(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("inventory")),
+):
     user_id = user.get("id") or str(user["_id"])
     products = await db.products.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
     low_stock_items = [p for p in products if p.get("stock_quantity", 0) <= p.get("low_stock_threshold", 10)]
@@ -801,7 +843,10 @@ async def get_inventory_transactions(user: dict = Depends(get_current_user)):
 # Drafts Management & Stats Endpoint
 # ==========================================
 @api_router.get("/drafts/stats")
-async def get_drafts_stats(user: dict = Depends(get_current_user)):
+async def get_drafts_stats(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     today_str = date.today().isoformat()
     
@@ -835,7 +880,8 @@ async def get_drafts_stats(user: dict = Depends(get_current_user)):
 async def get_invoices(
     status: Optional[str] = None,
     payment_status: Optional[str] = None,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
 ):
     user_id = user.get("id") or str(user["_id"])
     query: Dict[str, Any] = {"user_id": user_id}
@@ -856,7 +902,11 @@ async def get_invoice_by_id(invoice_id: str, user: dict = Depends(get_current_us
     return invoice
 
 @api_router.post("/invoices")
-async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_user)):
+async def create_invoice(
+    data: InvoiceCreate,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     
     # Check Draft Limit if status is draft
@@ -977,7 +1027,12 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
     return inv_doc
 
 @api_router.put("/invoices/{invoice_id}")
-async def update_invoice(invoice_id: str, data: InvoiceCreate, user: dict = Depends(get_current_user)):
+async def update_invoice(
+    invoice_id: str,
+    data: InvoiceCreate,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     existing = await db.invoices.find_one({"id": invoice_id, "user_id": user_id})
     if not existing:
@@ -1050,7 +1105,11 @@ async def update_invoice(invoice_id: str, data: InvoiceCreate, user: dict = Depe
     return updated
 
 @api_router.delete("/invoices/{invoice_id}")
-async def delete_invoice(invoice_id: str, user: dict = Depends(get_current_user)):
+async def delete_invoice(
+    invoice_id: str,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     existing = await db.invoices.find_one({"id": invoice_id, "user_id": user_id})
     if not existing:
@@ -1065,7 +1124,8 @@ async def delete_invoice(invoice_id: str, user: dict = Depends(get_current_user)
 @api_router.get("/quotations")
 async def get_quotations(
     status: Optional[str] = None,
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
 ):
     user_id = user.get("id") or str(user["_id"])
     query: Dict[str, Any] = {"user_id": user_id}
@@ -1075,7 +1135,11 @@ async def get_quotations(
     return quotations
 
 @api_router.get("/quotations/{quotation_id}")
-async def get_quotation_by_id(quotation_id: str, user: dict = Depends(get_current_user)):
+async def get_quotation_by_id(
+    quotation_id: str,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     quo = await db.quotations.find_one({"$or": [{"id": quotation_id}, {"quotation_number": quotation_id}], "user_id": user_id}, {"_id": 0})
     if not quo:
@@ -1083,7 +1147,11 @@ async def get_quotation_by_id(quotation_id: str, user: dict = Depends(get_curren
     return quo
 
 @api_router.post("/quotations")
-async def create_quotation(data: QuotationCreate, user: dict = Depends(get_current_user)):
+async def create_quotation(
+    data: QuotationCreate,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     today_str = date.today().isoformat()
     
@@ -1157,7 +1225,11 @@ async def create_quotation(data: QuotationCreate, user: dict = Depends(get_curre
     return quo_doc
 
 @api_router.post("/quotations/{quotation_id}/convert-to-invoice")
-async def convert_quotation_to_invoice(quotation_id: str, user: dict = Depends(get_current_user)):
+async def convert_quotation_to_invoice(
+    quotation_id: str,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     quo = await db.quotations.find_one({"$or": [{"id": quotation_id}, {"quotation_number": quotation_id}], "user_id": user_id}, {"_id": 0})
     if not quo:
@@ -1222,7 +1294,11 @@ async def convert_quotation_to_invoice(quotation_id: str, user: dict = Depends(g
     }
 
 @api_router.delete("/quotations/{quotation_id}")
-async def delete_quotation(quotation_id: str, user: dict = Depends(get_current_user)):
+async def delete_quotation(
+    quotation_id: str,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("invoicing")),
+):
     user_id = user.get("id") or str(user["_id"])
     await db.quotations.delete_one({"id": quotation_id, "user_id": user_id})
     return {"message": "Quotation deleted"}
@@ -1234,7 +1310,8 @@ async def delete_quotation(quotation_id: str, user: dict = Depends(get_current_u
 @api_router.get("/payments")
 async def get_payments(
     filter: str = Query("today", description="Filter payments by 'today' or 'all'"),
-    user: dict = Depends(get_current_user)
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("payment_tracking")),
 ):
     user_id = user.get("id") or str(user["_id"])
     query: Dict[str, Any] = {"user_id": user_id}
@@ -1255,7 +1332,11 @@ async def get_payments(
     }
 
 @api_router.post("/payments")
-async def record_payment(data: PaymentCreate, user: dict = Depends(get_current_user)):
+async def record_payment(
+    data: PaymentCreate,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("payment_tracking")),
+):
     user_id = user.get("id") or str(user["_id"])
     
     if float(data.amount) <= 0:
@@ -1322,7 +1403,10 @@ async def record_payment(data: PaymentCreate, user: dict = Depends(get_current_u
 # Dashboard Statistics & Overview
 # ==========================================
 @api_router.get("/dashboard/stats")
-async def get_dashboard_stats(user: dict = Depends(get_current_user)):
+async def get_dashboard_stats(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("basic_analytics")),
+):
     user_id = user.get("id") or str(user["_id"])
     today_str = date.today().isoformat()
     
@@ -1359,311 +1443,6 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     }
 
 
-# ==========================================
-# Demo Data Seeder (Optional 1-Click Sandbox)
-# ==========================================
-@api_router.post("/seed/demo-data")
-async def seed_demo_data(user: dict = Depends(get_current_user)):
-    user_id = user.get("id") or str(user["_id"])
-    today_str = date.today().isoformat()
-    
-    # 1. Update company profile
-    company_profile = {
-        "user_id": user_id,
-        "company_name": "Vyastha Enterprise Solutions Ltd",
-        "pan_number": "AAACV9821K",
-        "gstin_number": "27AAACV9821K1Z3",
-        "phone": "+91 98200 12345",
-        "email": "contact@vyastha-solutions.in",
-        "company_logo": "https://images.unsplash.com/photo-1693045181288-87092e30f862?w=400&auto=format&fit=crop&q=80",
-        "tagline": "Precision Invoicing & Smart Inventory Logistics",
-        "address": "Floor 12, Tower B, Cyber City, BKC, Mumbai, MH 400051",
-        "bank_details": {
-            "bank_name": "HDFC Bank Ltd",
-            "account_holder_name": "Vyastha Enterprise Solutions Ltd",
-            "account_number": "50200088991122",
-            "ifsc": "HDFC0000128",
-            "branch": "BKC Bandra East",
-            "upi_id": "vyastha.enterprise@hdfcbank"
-        },
-        "signature_image": "",
-        "default_terms": "1. 100% Payment due within 15 days of invoice date.\n2. Goods once dispatched remain property of Vyastha until cleared.\n3. Delayed payments attract 1.5% interest per month.\n4. All claims subject to Mumbai jurisdiction.",
-        "invoice_prefix": "INV",
-        "quotation_prefix": "QUO",
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.company_profiles.update_one({"user_id": user_id}, {"$set": company_profile}, upsert=True)
-    
-    # 2. Seed realistic Customers
-    sample_customers = [
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "customer_id": "CUST-101",
-            "company_name": "Apex Global Logistics LLP",
-            "contact_person": "Vikram Malhotra",
-            "gstin_number": "27AABCA5544K1ZZ",
-            "pan_number": "AABCA5544K",
-            "phone": "+91 98111 22334",
-            "email": "procurement@apexlogistics.in",
-            "address": "Plot 45, MIDC Industrial Area, Andheri East, Mumbai 400093",
-            "created_at": datetime.now(timezone.utc).isoformat()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "customer_id": "CUST-102",
-            "company_name": "Nexus Retail & Distributions",
-            "contact_person": "Pooja Hegde",
-            "gstin_number": "29BBBCB8899M1ZQ",
-            "pan_number": "BBBCB8899M",
-            "phone": "+91 97444 88990",
-            "email": "finance@nexusretail.com",
-            "address": "100 Feet Ring Road, Indiranagar, Bengaluru, KA 560038",
-            "created_at": datetime.now(timezone.utc).isoformat()
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "customer_id": "CUST-103",
-            "company_name": "Zenith Infotech Solutions",
-            "contact_person": "Arun Kumar",
-            "gstin_number": "33CCCZC1234N1Z8",
-            "pan_number": "CCCZC1234N",
-            "phone": "+91 94444 55667",
-            "email": "accounts@zenithinfo.co",
-            "address": "OMR IT Corridor, Chennai, TN 600096",
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-    ]
-    for c in sample_customers:
-        await db.customers.update_one({"company_name": c["company_name"], "user_id": user_id}, {"$set": c}, upsert=True)
-        
-    # # 3. Seed Products (including some with low stock to show alerts)
-    # sample_products = [
-    #     {
-    #         "id": str(uuid.uuid4()),
-    #         "user_id": user_id,
-    #         "name": "Industrial Thermal Label Rolls (100x150mm)",
-    #         "sku": "PRD-LBL-001",
-    #         "category": "Packaging",
-    #         "unit": "box",
-    #         "unit_price": 1250.0,
-    #         "stock_quantity": 48,
-    #         "low_stock_threshold": 15,
-    #         "description": "Premium top-coated direct thermal barcode shipping labels.",
-    #         "created_at": datetime.now(timezone.utc).isoformat(),
-    #         "updated_at": datetime.now(timezone.utc).isoformat()
-    #     },
-    #     {
-    #         "id": str(uuid.uuid4()),
-    #         "user_id": user_id,
-    #         "name": "Heavy Duty Steel Pallet Strapping (19mm)",
-    #         "sku": "PRD-STRP-002",
-    #         "category": "Hardware",
-    #         "unit": "roll",
-    #         "unit_price": 3400.0,
-    #         "stock_quantity": 4,  # LOW STOCK
-    #         "low_stock_threshold": 10,
-    #         "description": "High tensile cold-rolled steel strapping for pallet stabilization.",
-    #         "created_at": datetime.now(timezone.utc).isoformat(),
-    #         "updated_at": datetime.now(timezone.utc).isoformat()
-    #     },
-    #     {
-    #         "id": str(uuid.uuid4()),
-    #         "user_id": user_id,
-    #         "name": "Wireless 2D Handheld QR/Barcode Scanner",
-    #         "sku": "PRD-SCN-003",
-    #         "category": "Electronics",
-    #         "unit": "pc",
-    #         "unit_price": 4850.0,
-    #         "stock_quantity": 3,  # LOW STOCK
-    #         "low_stock_threshold": 8,
-    #         "description": "Long range Bluetooth 5.0 industrial warehouse scanner.",
-    #         "created_at": datetime.now(timezone.utc).isoformat(),
-    #         "updated_at": datetime.now(timezone.utc).isoformat()
-    #     },
-    #     {
-    #         "id": str(uuid.uuid4()),
-    #         "user_id": user_id,
-    #         "name": "Corrugated 5-Ply Shipping Box (18x12x12 inch)",
-    #         "sku": "PRD-BOX-004",
-    #         "category": "Packaging",
-    #         "unit": "pc",
-    #         "unit_price": 85.0,
-    #         "stock_quantity": 250,
-    #         "low_stock_threshold": 50,
-    #         "description": "Heavy-duty double wall corrugated carton for bulk transit.",
-    #         "created_at": datetime.now(timezone.utc).isoformat(),
-    #         "updated_at": datetime.now(timezone.utc).isoformat()
-    #     }
-    # ]
-    # for p in sample_products:
-    #     await db.products.update_one({"sku": p["sku"], "user_id": user_id}, {"$set": p}, upsert=True)
-        
-    # # 4. Seed Invoices
-    # inv_1_num = "INV-2026-0001"
-    # inv_1_items = [
-    #     {"description": "Industrial Thermal Label Rolls (100x150mm)", "quantity": 10, "unit": "box", "pieces": 10, "unit_price": 1250.0, "amount": 12500.0},
-    #     {"description": "Wireless 2D Handheld QR/Barcode Scanner", "quantity": 2, "unit": "pc", "pieces": 2, "unit_price": 4850.0, "amount": 9700.0}
-    # ]
-    # subtotal_1 = 22200.0
-    # tax_1 = 3996.0  # 18%
-    # total_1 = 26196.0
-    
-    # inv_1 = {
-    #     "id": str(uuid.uuid4()),
-    #     "user_id": user_id,
-    #     "invoice_number": inv_1_num,
-    #     "invoice_date": today_str,
-    #     "shipping_date": today_str,
-    #     "customer_id": "CUST-101",
-    #     "vehicle_number": "MH-04-AB-9821",
-    #     "reference_quotation_number": "",
-    #     "seller_details": company_profile,
-    #     "buyer_details": sample_customers[0],
-    #     "line_items": inv_1_items,
-    #     "subtotal": subtotal_1,
-    #     "tax_rate": 18.0,
-    #     "tax_amount": tax_1,
-    #     "discount_type": "amount",
-    #     "discount_value": 0.0,
-    #     "discount_amount": 0.0,
-    #     "total_amount": total_1,
-    #     "terms_and_conditions": company_profile["default_terms"],
-    #     "bank_details": company_profile["bank_details"],
-    #     "signature_url": "",
-    #     "notes": "Thank you for your business! Goods dispatched via SafeXpress.",
-    #     "status": "finalized",
-    #     "payment_status": "paid",
-    #     "amount_paid": total_1,
-    #     "balance_due": 0.0,
-    #     "upi_qr_data": build_upi_qr_string(company_profile["bank_details"]["upi_id"], company_profile["company_name"], total_1, f"Invoice {inv_1_num}"),
-    #     "created_date_str": today_str,
-    #     "created_at": datetime.now(timezone.utc).isoformat(),
-    #     "updated_at": datetime.now(timezone.utc).isoformat()
-    # }
-    # await db.invoices.update_one({"invoice_number": inv_1_num, "user_id": user_id}, {"$set": inv_1}, upsert=True)
-    
-    # # Record payment for invoice 1
-    # pay_1 = {
-    #     "id": str(uuid.uuid4()),
-    #     "user_id": user_id,
-    #     "invoice_id": inv_1["id"],
-    #     "invoice_number": inv_1_num,
-    #     "customer_name": sample_customers[0]["company_name"],
-    #     "amount": total_1,
-    #     "payment_date": today_str,
-    #     "payment_method": "UPI",
-    #     "transaction_ref": "UPI/26196/SBIN88921102",
-    #     "notes": "Received instant settlement via PhonePe UPI",
-    #     "status": "successful",
-    #     "created_at": datetime.now(timezone.utc).isoformat()
-    # }
-    # await db.payments.update_one({"invoice_number": inv_1_num, "user_id": user_id}, {"$set": pay_1}, upsert=True)
-    
-    # # Quotation
-    # quo_1_num = "QUO-2026-0001"
-    # quo_1 = {
-    #     "id": str(uuid.uuid4()),
-    #     "user_id": user_id,
-    #     "quotation_number": quo_1_num,
-    #     "quotation_date": today_str,
-    #     "valid_until": (date.today() + timedelta(days=14)).isoformat(),
-    #     "customer_id": "CUST-102",
-    #     "vehicle_number": "",
-    #     "seller_details": company_profile,
-    #     "buyer_details": sample_customers[1],
-    #     "line_items": [
-    #         {"description": "Corrugated 5-Ply Shipping Box (18x12x12 inch)", "quantity": 100, "unit": "pc", "pieces": 100, "unit_price": 85.0, "amount": 8500.0},
-    #         {"description": "Heavy Duty Steel Pallet Strapping (19mm)", "quantity": 2, "unit": "roll", "pieces": 2, "unit_price": 3400.0, "amount": 6800.0}
-    #     ],
-    #     "subtotal": 15300.0,
-    #     "tax_rate": 18.0,
-    #     "tax_amount": 2754.0,
-    #     "discount_type": "percentage",
-    #     "discount_value": 5.0,
-    #     "discount_amount": 765.0,
-    #     "total_amount": 17289.0,
-    #     "terms_and_conditions": company_profile["default_terms"],
-    #     "bank_details": company_profile["bank_details"],
-    #     "signature_url": "",
-    #     "notes": "5% Volume Discount applied for quarterly agreement.",
-    #     "status": "sent",
-    #     "upi_qr_data": build_upi_qr_string(company_profile["bank_details"]["upi_id"], company_profile["company_name"], 17289.0, f"Quote {quo_1_num}"),
-    #     "created_date_str": today_str,
-    #     "created_at": datetime.now(timezone.utc).isoformat(),
-    #     "updated_at": datetime.now(timezone.utc).isoformat()
-    # }
-    # await db.quotations.update_one({"quotation_number": quo_1_num, "user_id": user_id}, {"$set": quo_1}, upsert=True)
-    
-    # return {"message": "Demo data populated successfully with realistic business profiles, inventory, invoices, and payments!"}
-
-
-# Include the router
-from routers.auth import router as auth_router
-
-app.include_router(api_router)
-app.include_router(auth_router, prefix="/api")
-# app.include_router(auth_router, prefix="/api")
-# Root-level health endpoints for deployment probe
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "service": "vyastha-billing"}
-
-@app.get("/")
-async def root():
-    return {"status": "ok", "service": "vyastha-billing"}
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=[
-    "https://vyastha-web-eight.vercel.app",
-    "http://localhost:3000",
-],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.on_event("startup")
-async def startup_event():
-    # Create indexes
-    try:
-        await db.users.create_index("email", unique=True)
-        await db.invoices.create_index([("user_id", 1), ("invoice_number", 1)])
-        await db.quotations.create_index([("user_id", 1), ("quotation_number", 1)])
-        await db.products.create_index([("user_id", 1), ("sku", 1)])
-        await db.customers.create_index([("user_id", 1), ("customer_id", 1)])
-        await db.payments.create_index([("user_id", 1), ("payment_date", 1)])
-        
-        # Seed Admin user if not present
-        admin_email = os.environ.get("ADMIN_EMAIL", "admin@vyastha.com")
-        admin_password = os.environ.get("ADMIN_PASSWORD", "adminpassword123")
-        existing_admin = await db.users.find_one({"email": admin_email})
-        if not existing_admin:
-            admin_id = str(uuid.uuid4())
-            hashed = hash_password(admin_password)
-            await db.users.insert_one({
-                "id": admin_id,
-                "email": admin_email,
-                "name": "System Administrator",
-                "company_name": "Vyastha Central HQ",
-                "password_hash": hashed,
-                "role": "admin",
-                "created_at": datetime.now(timezone.utc).isoformat()
-            })
-            logger.info("Admin user seeded.")
-    except Exception as e:
-        logger.error(f"Error in startup: {e}")
-
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
-
-
-from lib import plans as plans_lib
-from lib import razorpay_client
 
 @api_router.get("/plans")
 async def list_plans():
@@ -1705,3 +1484,15 @@ async def create_razorpay_order(
         "razorpay_key_id": razorpay_client.key_id(),
         "plan_name": plan["name"],
     }
+
+    # Include all API routes
+app.include_router(api_router)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
