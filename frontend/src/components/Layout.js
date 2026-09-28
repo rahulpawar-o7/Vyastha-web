@@ -30,17 +30,21 @@ export default function Layout({ children }) {
   const [seeding, setSeeding] = useState(false);
 
   const fetchQuickStats = async () => {
-    try {
-      const [draftRes, alertRes] = await Promise.all([
-        api.get('/drafts/stats'),
-        api.get('/inventory/alerts')
-      ]);
-      setDraftStats(draftRes.data);
-      setLowStockCount(alertRes.data.count || 0);
-    } catch (e) {
-      // ignore in background
-    }
-  };
+  try {
+    const draftRes = await api.get('/drafts/stats');
+    setDraftStats(draftRes.data);
+  } catch (e) {
+    // ignore draft stats error in background
+  }
+
+  try {
+    const alertRes = await api.get('/inventory/alerts');
+    setLowStockCount(alertRes.data.count || 0);
+  } catch (e) {
+    // Smart Inventory / Low-Stock Alerts may be Pro-only
+    setLowStockCount(0);
+  }
+};
 
   useEffect(() => {
     fetchQuickStats();

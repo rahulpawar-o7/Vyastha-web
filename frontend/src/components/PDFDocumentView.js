@@ -21,7 +21,11 @@ export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
   const items = documentData?.line_items || [];
 
   // UPI Intent URL
-  const upiUrl = documentData?.upi_qr_data || `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.company_name || 'Vyastha'}&am=${documentData?.total_amount || 0}&cu=INR&tn=${docNumber}`;
+  const qrAmount = isInvoice
+  ? Number(documentData?.balance_due ?? documentData?.total_amount ?? 0)
+  : Number(documentData?.total_amount ?? 0);
+
+const upiUrl = `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.company_name || 'Vyastha'}&am=${qrAmount.toFixed(2)}&cu=INR&tn=${docNumber}`;
 
   // const handleDownloadPDF = async () => {
   //   if (!printRef.current) return;

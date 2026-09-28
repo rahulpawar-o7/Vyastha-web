@@ -15,6 +15,7 @@ import {
   History,
 } from 'lucide-react';
 import { toast } from 'sonner';
+// import { useEffect, useState } from 'react';
 
 const EMPTY_PRODUCT = {
   name: '',
@@ -37,6 +38,8 @@ export default function InventoryPage() {
   const [editingProduct, setEditingProduct] = useState(null);
   const [adjustingProduct, setAdjustingProduct] = useState(null);
   const [tab, setTab] = useState('products'); // products | transactions
+  const [entitlements, setEntitlements] = useState(null);
+  const [entitlementsLoading, setEntitlementsLoading] = useState(true);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -64,6 +67,24 @@ export default function InventoryPage() {
     fetchTransactions();
   }, []);
 
+    useEffect(() => {
+    const fetchEntitlements = async () => {
+      try {
+        const res = await api.get('/auth/entitlements');
+        setEntitlements(res.data);
+      } catch (e) {
+        console.error('Failed to load subscription details', e);
+      } finally {
+        setEntitlementsLoading(false);
+      }
+    };
+
+    fetchEntitlements();
+  }, []);
+
+  const currentPlanSlug = entitlements?.plan_slug || 'free';
+  const isPro = currentPlanSlug === 'pro';
+
   const openCreate = () => {
     setEditingProduct({ ...EMPTY_PRODUCT });
     setShowModal(true);
@@ -82,11 +103,14 @@ export default function InventoryPage() {
     }
     try {
       const payload = {
-        ...editingProduct,
-        unit_price: parseFloat(editingProduct.unit_price) || 0,
-        stock_quantity: parseInt(editingProduct.stock_quantity) || 0,
-        low_stock_threshold: parseInt(editingProduct.low_stock_threshold) || 0,
-      };
+  ...editingProduct,
+  unit_price: parseFloat(editingProduct.unit_price) || 0,
+  low_stock_threshold: parseInt(editingProduct.low_stock_threshold) || 0,
+};
+
+if (!editingProduct.id) {
+  payload.stock_quantity = parseInt(editingProduct.stock_quantity) || 0;
+}
       if (editingProduct.id) {
         await api.put(`/products/${editingProduct.id}`, payload);
         toast.success('Product updated');
