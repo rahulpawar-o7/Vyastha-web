@@ -39,8 +39,27 @@ export default function PaymentRecordModal({ isOpen, onClose, invoice, onPayment
       if (onPaymentSuccess) onPaymentSuccess();
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to record payment');
-    } finally {
+  const status = err.response?.status;
+  const detail = err.response?.data?.detail;
+
+  if (status === 402) {
+    const message =
+      typeof detail === 'string'
+        ? detail
+        : detail?.message ||
+          'Payment Management is a Vyastha Pro feature. Please upgrade to Vyastha Pro to use this feature.';
+
+    toast.error(`🔒 ${message}`);
+    return;
+  }
+
+  const errorMessage =
+    typeof detail === 'string'
+      ? detail
+      : detail?.message || 'Failed to record payment';
+
+  toast.error(errorMessage);
+} finally {
       setLoading(false);
     }
   };

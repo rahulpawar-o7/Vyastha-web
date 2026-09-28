@@ -14,6 +14,7 @@ from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
 from routers.auth import router as auth_router
 from routers.subscriptions import router as subscriptions_router
+from routers.analytics import router as analytics_router
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
@@ -778,7 +779,7 @@ async def adjust_stock(
     product_id: str,
     adjustment: StockAdjustment,
     user: dict = Depends(get_current_user),
-    _: None = Depends(require_feature("inventory")),
+    _: None = Depends(require_feature("advanced_inventory")),
 ):
     user_id = user.get("id") or str(user["_id"])
     product = await db.products.find_one({"id": product_id, "user_id": user_id})
@@ -822,7 +823,7 @@ async def adjust_stock(
 @api_router.get("/inventory/alerts")
 async def get_inventory_alerts(
     user: dict = Depends(get_current_user),
-    _: None = Depends(require_feature("inventory")),
+    _: None = Depends(require_feature("advanced_inventory")),
 ):
     user_id = user.get("id") or str(user["_id"])
     products = await db.products.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
@@ -946,6 +947,12 @@ async def create_invoice(
     calc_tax_amt = (taxable * data.tax_rate) / 100.0
 
     calc_total = taxable + calc_tax_amt
+
+    gst_split = {
+        "cgst_amount": round(calc_tax_amt / 2, 2),
+        "sgst_amount": round(calc_tax_amt / 2, 2),
+        "igst_amount": 0.0,
+    }
 
     calc_amount_in_words = amount_in_words(calc_total)
 
@@ -1118,9 +1125,7 @@ async def delete_invoice(
     return {"message": "Invoice deleted successfully"}
 
 
-# ==========================================
-# Quotations Module & Convert to Invoice
-# ==========================================
+
 @api_router.get("/quotations")
 async def get_quotations(
     status: Optional[str] = None,
@@ -1128,23 +1133,24 @@ async def get_quotations(
     _: None = Depends(require_feature("invoicing")),
 ):
     user_id = user.get("id") or str(user["_id"])
-    query: Dict[str, Any] = {"user_id": user_id}
+
+    query: Dict[str, Any] = {
+        "user_id": user_id
+    }
+
     if status:
         query["status"] = status
-    quotations = await db.quotations.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+
+    quotations = await db.quotations.find(
+        query,
+        {"_id": 0}
+    ).sort(
+        "created_at",
+        -1
+    ).to_list(1000)
+
     return quotations
 
-@api_router.get("/quotations/{quotation_id}")
-async def get_quotation_by_id(
-    quotation_id: str,
-    user: dict = Depends(get_current_user),
-    _: None = Depends(require_feature("invoicing")),
-):
-    user_id = user.get("id") or str(user["_id"])
-    quo = await db.quotations.find_one({"$or": [{"id": quotation_id}, {"quotation_number": quotation_id}], "user_id": user_id}, {"_id": 0})
-    if not quo:
-        raise HTTPException(status_code=404, detail="Quotation not found")
-    return quo
 
 @api_router.post("/quotations")
 async def create_quotation(
@@ -1154,39 +1160,99 @@ async def create_quotation(
 ):
     user_id = user.get("id") or str(user["_id"])
     today_str = date.today().isoformat()
-    
+
     if data.status == "draft":
         today_count = await get_daily_draft_count(user_id)
         if today_count >= 50:
-            raise HTTPException(status_code=400, detail="Daily draft limit reached (50 drafts/day maximum).")
-            
-    profile = await db.company_profiles.find_one({"user_id": user_id}, {"_id": 0}) or {}
+            raise HTTPException(
+                status_code=400,
+                detail="Daily draft limit reached (50 drafts/day maximum)."
+            )
+
+    profile = await db.company_profiles.find_one(
+        {"user_id": user_id},
+        {"_id": 0}
+    ) or {}
+
     prefix = profile.get("quotation_prefix") or "QUO"
-    
+
     quo_number = data.quotation_number
     if not quo_number:
-        quo_number = await get_next_sequence(user_id, "quotation", prefix)
-        
-    line_items_data = [item.model_dump() for item in data.line_items]
-    calc_subtotal = sum(float(item.get("quantity", 0)) * float(item.get("unit_price", 0)) for item in line_items_data)
-    
+        quo_number = await get_next_sequence(
+            user_id,
+            "quotation",
+            prefix
+        )
+
+    line_items_data = [
+        item.model_dump()
+        for item in data.line_items
+    ]
+
+    calc_subtotal = sum(
+        float(item.get("quantity", 0)) *
+        float(item.get("unit_price", 0))
+        for item in line_items_data
+    )
+
     discount_amt = 0.0
+
     if data.discount_type == "percentage":
-        discount_amt = (calc_subtotal * data.discount_value) / 100.0
+        discount_amt = (
+            calc_subtotal * data.discount_value
+        ) / 100.0
     else:
         discount_amt = data.discount_value
-    discount_amt = max(0.0, min(discount_amt, calc_subtotal))
-    
-    taxable = max(0.0, calc_subtotal - discount_amt)
-    calc_tax_amt = (taxable * data.tax_rate) / 100.0
+
+    discount_amt = max(
+        0.0,
+        min(discount_amt, calc_subtotal)
+    )
+
+    taxable = max(
+        0.0,
+        calc_subtotal - discount_amt
+    )
+
+    calc_tax_amt = (
+        taxable * data.tax_rate
+    ) / 100.0
+
     calc_total = taxable + calc_tax_amt
-    
+
+    # GST split
+    gst_split = {
+        "cgst_amount": round(calc_tax_amt / 2, 2),
+        "sgst_amount": round(calc_tax_amt / 2, 2),
+        "igst_amount": 0.0,
+    }
+
+    # Amount in words
+    calc_amount_in_words = amount_in_words(calc_total)
+
     seller = data.seller_details or profile
-    upi_id = seller.get("bank_details", {}).get("upi_id") or profile.get("bank_details", {}).get("upi_id") or "business@upi"
-    company_name = seller.get("company_name") or profile.get("company_name") or "Vyastha Business"
-    upi_qr_data = build_upi_qr_string(upi_id, company_name, calc_total, f"Quote {quo_number}")
-    
+
+    upi_id = (
+        seller.get("bank_details", {}).get("upi_id")
+        or profile.get("bank_details", {}).get("upi_id")
+        or "business@upi"
+    )
+
+    company_name = (
+        seller.get("company_name")
+        or profile.get("company_name")
+        or "Vyastha Business"
+    )
+
+    upi_qr_data = build_upi_qr_string(
+        upi_id,
+        company_name,
+        calc_total,
+        f"Quote {quo_number}"
+    )
+
     quo_id = str(uuid.uuid4())
+
     quo_doc = {
         "id": quo_id,
         "user_id": user_id,
@@ -1209,9 +1275,18 @@ async def create_quotation(
         "cgst_amount": gst_split["cgst_amount"],
         "sgst_amount": gst_split["sgst_amount"],
         "igst_amount": gst_split["igst_amount"],
-        "terms_and_conditions": data.terms_and_conditions or profile.get("default_terms", ""),
-        "bank_details": data.bank_details or profile.get("bank_details", {}),
-        "signature_url": data.signature_url or profile.get("signature_image", ""),
+        "terms_and_conditions": (
+            data.terms_and_conditions
+            or profile.get("default_terms", "")
+        ),
+        "bank_details": (
+            data.bank_details
+            or profile.get("bank_details", {})
+        ),
+        "signature_url": (
+            data.signature_url
+            or profile.get("signature_image", "")
+        ),
         "notes": data.notes or "",
         "status": data.status,
         "upi_qr_data": upi_qr_data,
@@ -1219,11 +1294,12 @@ async def create_quotation(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
-    
-    await db.quotations.insert_one(quo_doc)
-    quo_doc.pop("_id", None)
-    return quo_doc
 
+    await db.quotations.insert_one(quo_doc)
+
+    quo_doc.pop("_id", None)
+
+    return quo_doc
 @api_router.post("/quotations/{quotation_id}/convert-to-invoice")
 async def convert_quotation_to_invoice(
     quotation_id: str,
@@ -1311,7 +1387,7 @@ async def delete_quotation(
 async def get_payments(
     filter: str = Query("today", description="Filter payments by 'today' or 'all'"),
     user: dict = Depends(get_current_user),
-    _: None = Depends(require_feature("payment_tracking")),
+    _: None = Depends(require_feature("payment_due_management")),
 ):
     user_id = user.get("id") or str(user["_id"])
     query: Dict[str, Any] = {"user_id": user_id}
@@ -1335,28 +1411,58 @@ async def get_payments(
 async def record_payment(
     data: PaymentCreate,
     user: dict = Depends(get_current_user),
-    _: None = Depends(require_feature("payment_tracking")),
+    _: None = Depends(require_feature("payment_due_management")),
 ):
     user_id = user.get("id") or str(user["_id"])
-    
+
     if float(data.amount) <= 0:
-        raise HTTPException(status_code=422, detail="Payment amount must be greater than 0")
-    
-    # If linked to an invoice, verify not overpaying
+        raise HTTPException(
+            status_code=422,
+            detail="Payment amount must be greater than 0"
+        )
+
+    # -------------------------------------------------
+    # Find linked invoice
+    # -------------------------------------------------
     linked_invoice = None
+
     if data.invoice_id:
-        linked_invoice = await db.invoices.find_one({"id": data.invoice_id, "user_id": user_id})
+        linked_invoice = await db.invoices.find_one({
+            "id": data.invoice_id,
+            "user_id": user_id
+        })
+
     if not linked_invoice and data.invoice_number:
-        linked_invoice = await db.invoices.find_one({"invoice_number": data.invoice_number, "user_id": user_id})
+        linked_invoice = await db.invoices.find_one({
+            "invoice_number": data.invoice_number,
+            "user_id": user_id
+        })
+
+    # -------------------------------------------------
+    # Verify payment amount is not greater than balance
+    # -------------------------------------------------
     if linked_invoice:
-        balance_due = float(linked_invoice.get("balance_due", linked_invoice.get("total_amount", 0)))
+        balance_due = float(
+            linked_invoice.get(
+                "balance_due",
+                linked_invoice.get("total_amount", 0)
+            )
+        )
+
         if float(data.amount) > balance_due + 0.01:
             raise HTTPException(
                 status_code=400,
-                detail=f"Payment amount ₹{data.amount} exceeds invoice balance due ₹{balance_due:.2f}"
+                detail=(
+                    f"Payment amount ₹{data.amount} "
+                    f"exceeds invoice balance due ₹{balance_due:.2f}"
+                )
             )
-    
+
+    # -------------------------------------------------
+    # Create payment record
+    # -------------------------------------------------
     pay_id = str(uuid.uuid4())
+
     pay_doc = {
         "id": pay_id,
         "user_id": user_id,
@@ -1366,37 +1472,93 @@ async def record_payment(
         "amount": round(float(data.amount), 2),
         "payment_date": data.payment_date,
         "payment_method": data.payment_method,
-        "transaction_ref": data.transaction_ref or f"TXN-{uuid.uuid4().hex[:8].upper()}",
+        "transaction_ref": (
+            data.transaction_ref
+            or f"TXN-{uuid.uuid4().hex[:8].upper()}"
+        ),
         "notes": data.notes or "",
         "status": data.status,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
+
     await db.payments.insert_one(pay_doc)
     pay_doc.pop("_id", None)
-    
-    # If linked to an invoice and successful, update invoice balance and payment status
-    if data.invoice_id and data.status == "successful":
-        invoice = await db.invoices.find_one({"id": data.invoice_id, "user_id": user_id})
-        if not invoice and data.invoice_number:
-            invoice = await db.invoices.find_one({"invoice_number": data.invoice_number, "user_id": user_id})
-            
-        if invoice:
-            new_paid = float(invoice.get("amount_paid", 0)) + float(data.amount)
-            total_amt = float(invoice.get("total_amount", 0))
-            new_balance = max(0.0, total_amt - new_paid)
-            
-            new_status = "paid" if new_balance <= 0.01 else "partially_paid"
-            await db.invoices.update_one(
-                {"id": invoice["id"], "user_id": user_id},
-                {"$set": {
+
+    # -------------------------------------------------
+    # If payment is linked to an invoice and successful,
+    # update invoice balance + payment status + QR amount
+    # -------------------------------------------------
+    if data.status == "successful" and linked_invoice:
+
+        invoice = linked_invoice
+
+        # Existing paid amount
+        old_paid = float(invoice.get("amount_paid", 0))
+
+        # Add new payment
+        new_paid = old_paid + float(data.amount)
+
+        # Invoice total
+        total_amt = float(invoice.get("total_amount", 0))
+
+        # Remaining balance
+        new_balance = max(0.0, total_amt - new_paid)
+
+        # Determine payment status
+        new_status = (
+            "paid"
+            if new_balance <= 0.01
+            else "partially_paid"
+        )
+
+        # -------------------------------------------------
+        # Generate NEW UPI QR for remaining balance
+        # -------------------------------------------------
+        seller = invoice.get("seller_details") or {}
+        bank_details = invoice.get("bank_details") or {}
+
+        upi_id = (
+            bank_details.get("upi_id")
+            or seller.get("bank_details", {}).get("upi_id")
+            or "business@upi"
+        )
+
+        company_name = (
+            seller.get("company_name")
+            or "Vyastha Business"
+        )
+
+        updated_upi_qr_data = build_upi_qr_string(
+            upi_id,
+            company_name,
+            new_balance,
+            f"Invoice {invoice.get('invoice_number', '')}"
+        )
+
+        # -------------------------------------------------
+        # Update invoice
+        # -------------------------------------------------
+        await db.invoices.update_one(
+            {
+                "id": invoice["id"],
+                "user_id": user_id
+            },
+            {
+                "$set": {
                     "amount_paid": round(new_paid, 2),
                     "balance_due": round(new_balance, 2),
                     "payment_status": new_status,
+                    "upi_qr_data": updated_upi_qr_data,
                     "updated_at": datetime.now(timezone.utc).isoformat()
-                }}
-            )
-            
-    return pay_doc
+                }
+            }
+        )
+
+    return {
+        "success": True,
+        "message": "Payment recorded successfully",
+        "payment": pay_doc
+    }
 
 
 # ==========================================
@@ -1496,3 +1658,5 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(analytics_router, prefix="/api")
