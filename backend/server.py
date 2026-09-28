@@ -15,6 +15,7 @@ from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Respons
 from routers.auth import router as auth_router
 from routers.subscriptions import router as subscriptions_router
 from routers.analytics import router as analytics_router
+from routers.team import router as team_router
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
@@ -1660,3 +1661,4 @@ app.add_middleware(
 )
 
 app.include_router(analytics_router, prefix="/api")
+app.include_router(team_router, prefix="/api")
