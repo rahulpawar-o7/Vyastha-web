@@ -109,6 +109,39 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+async def get_business_data_owner_id(user: dict) -> str:
+    """
+    Returns the canonical data-owner user ID for the current business.
+
+    Staff members keep their own identity/role, but business-owned
+    data continues to use the business owner's existing user_id.
+    """
+
+    user_id = user.get("id") or str(user["_id"])
+    business_id = user.get("business_id")
+
+    # Legacy users without a business_id continue using their own data.
+    if not business_id:
+        return user_id
+
+    owner = await db.users.find_one(
+        {
+            "business_id": business_id,
+            "role": {"$in": ["owner", "business_owner"]},
+        },
+        {
+            "_id": 0,
+            "id": 1,
+        },
+    )
+
+    if owner and owner.get("id"):
+        return owner["id"]
+
+    # Safe fallback
+    return user_id
+
+
 # ==========================================
 # Pydantic Models
 # ==========================================
@@ -692,13 +725,19 @@ async def delete_customer(customer_id: str, user: dict = Depends(get_current_use
 # Products & Inventory Module
 # ==========================================
 @api_router.get("/products")
-
 async def get_products(
     user: dict = Depends(get_current_user),
     _: None = Depends(require_feature("products")),
 ):
-    user_id = user.get("id") or str(user["_id"])
-    products = await db.products.find({"user_id": user_id}, {"_id": 0}).sort("name", 1).to_list(1000)
+    data_owner_id = await get_business_data_owner_id(user)
+
+    products = await db.products.find(
+        {"user_id": data_owner_id},
+        {"_id": 0}
+    ).sort(
+        "name", 1
+    ).to_list(1000)
+
     return products
 
 @api_router.post("/products")
@@ -885,8 +924,9 @@ async def get_invoices(
     user: dict = Depends(get_current_user),
     _: None = Depends(require_feature("invoicing")),
 ):
-    user_id = user.get("id") or str(user["_id"])
-    query: Dict[str, Any] = {"user_id": user_id}
+    data_owner_id = await get_business_data_owner_id(user)
+
+    query: Dict[str, Any] = {"user_id": data_owner_id}
     if status:
         query["status"] = status
     if payment_status:
@@ -1133,10 +1173,10 @@ async def get_quotations(
     user: dict = Depends(get_current_user),
     _: None = Depends(require_feature("invoicing")),
 ):
-    user_id = user.get("id") or str(user["_id"])
+    data_owner_id = await get_business_data_owner_id(user)
 
     query: Dict[str, Any] = {
-        "user_id": user_id
+        "user_id": data_owner_id
     }
 
     if status:
@@ -1380,27 +1420,45 @@ async def delete_quotation(
     await db.quotations.delete_one({"id": quotation_id, "user_id": user_id})
     return {"message": "Quotation deleted"}
 
-
-# ==========================================
+## ==========================================
 # Payments Module
 # ==========================================
 @api_router.get("/payments")
 async def get_payments(
-    filter: str = Query("today", description="Filter payments by 'today' or 'all'"),
+    filter: str = Query(
+        "today",
+        description="Filter payments by 'today' or 'all'"
+    ),
     user: dict = Depends(get_current_user),
     _: None = Depends(require_feature("payment_due_management")),
 ):
-    user_id = user.get("id") or str(user["_id"])
-    query: Dict[str, Any] = {"user_id": user_id}
-    
+    # Staff users should see payments belonging to
+    # the business owner's existing data.
+    data_owner_id = await get_business_data_owner_id(user)
+
+    query: Dict[str, Any] = {
+        "user_id": data_owner_id
+    }
+
     if filter == "today":
         today_str = date.today().isoformat()
         query["payment_date"] = today_str
-        
-    payments = await db.payments.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
-    
+
+    payments = await db.payments.find(
+        query,
+        {"_id": 0}
+    ).sort(
+        "created_at",
+        -1
+    ).to_list(1000)
+
     # Summary calculation
-    total_collected = sum(p.get("amount", 0) for p in payments if p.get("status") == "successful")
+    total_collected = sum(
+        p.get("amount", 0)
+        for p in payments
+        if p.get("status") == "successful"
+    )
+
     return {
         "filter": filter,
         "total_amount": round(total_collected, 2),
@@ -1570,12 +1628,23 @@ async def get_dashboard_stats(
     user: dict = Depends(get_current_user),
     _: None = Depends(require_feature("basic_analytics")),
 ):
-    user_id = user.get("id") or str(user["_id"])
+    data_owner_id = await get_business_data_owner_id(user)
     today_str = date.today().isoformat()
-    
-    all_invoices = await db.invoices.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
-    all_payments = await db.payments.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
-    all_products = await db.products.find({"user_id": user_id}, {"_id": 0}).to_list(1000)
+        
+    all_invoices = await db.invoices.find(
+        {"user_id": data_owner_id},
+        {"_id": 0}
+    ).to_list(1000)
+
+    all_payments = await db.payments.find(
+        {"user_id": data_owner_id},
+        {"_id": 0}
+    ).to_list(1000)
+
+    all_products = await db.products.find(
+        {"user_id": data_owner_id},
+        {"_id": 0}
+    ).to_list(1000)
     
     total_revenue = sum(inv.get("total_amount", 0) for inv in all_invoices if inv.get("status") != "cancelled")
     total_collected = sum(p.get("amount", 0) for p in all_payments if p.get("status") == "successful")
@@ -1586,7 +1655,7 @@ async def get_dashboard_stats(
     
     low_stock_count = sum(1 for p in all_products if p.get("stock_quantity", 0) <= p.get("low_stock_threshold", 10))
     
-    today_draft_count = await get_daily_draft_count(user_id)
+    today_draft_count = await get_daily_draft_count(data_owner_id)
     
     recent_invoices = sorted(all_invoices, key=lambda x: x.get("created_at", ""), reverse=True)[:5]
     recent_payments = sorted(all_payments, key=lambda x: x.get("created_at", ""), reverse=True)[:5]

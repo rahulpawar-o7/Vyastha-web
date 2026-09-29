@@ -18,6 +18,7 @@ import PaymentsPage from './pages/PaymentsPage';
 import InventoryPage from './pages/InventoryPage';
 import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
+import TeamPage from './pages/TeamPage';
 
 function ProtectedRoute({ children, withLayout = true }) {
   const { user, loading } = useAuth();
@@ -177,6 +178,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+                path="/team"
+                element={
+                <ProtectedRoute>
+                  <TeamPage />
                 </ProtectedRoute>
               }
             />
