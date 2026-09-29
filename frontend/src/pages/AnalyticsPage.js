@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
            * Top products will be connected to the backend
            * in the next backend step.
            */
-          top_products: [],
+          top_products: backendData.top_products || [],
 
           payment_breakdown: paymentBreakdown,
         });
@@ -371,7 +371,7 @@ export default function AnalyticsPage() {
 
                 <YAxis
                   type="category"
-                  dataKey="name"
+                  dataKey="product_name"
                   width={110}
                   tick={{ fontSize: 11 }}
                 />

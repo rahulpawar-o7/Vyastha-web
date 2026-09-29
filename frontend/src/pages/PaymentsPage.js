@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import PaymentRecordModal from '../components/PaymentRecordModal';
+
 import { 
   CreditCard, 
   Plus, 
@@ -14,19 +15,57 @@ import {
 import { toast } from 'sonner';
 
 export default function PaymentsPage() {
-  const [paymentsData, setPaymentsData] = useState({ payments: [], total_amount: 0, count: 0, filter: 'today' });
+
+  const [paymentsData, setPaymentsData] = useState({
+    payments: [],
+    total_amount: 0,
+    count: 0,
+    filter: 'today'
+  });
+
   const [loading, setLoading] = useState(true);
+  const [hasPaymentDueManagement, setHasPaymentDueManagement] = useState(null);
   const [filterMode, setFilterMode] = useState('today'); // 'today' or 'all'
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
 
-  const fetchPayments = async (filter = filterMode) => {
+    const fetchPayments = async (filter = filterMode) => {
     setLoading(true);
+
     try {
+      const entitlementResponse = await api.get('/auth/entitlements');
+
+      const features =
+        entitlementResponse?.data?.entitlements?.features ||
+        entitlementResponse?.data?.features ||
+        {};
+
+      const paymentDueEnabled = features.payment_due_management === true;
+
+      setHasPaymentDueManagement(paymentDueEnabled);
+
+      // Do not call the Payments API for normal Vyastha users.
+      if (!paymentDueEnabled) {
+        setPaymentsData({
+          payments: [],
+          total_amount: 0,
+          count: 0,
+          filter,
+        });
+        return;
+      }
+
       const res = await api.get(`/payments?filter=${filter}`);
       setPaymentsData(res.data);
-    } catch (e) {
-      toast.error('Failed to load payments history');
+    } catch (error) {
+      const detail = error?.response?.data?.detail;
+
+      const message =
+        typeof detail === 'string'
+          ? detail
+          : 'Unable to load payment history.';
+
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -43,6 +82,49 @@ export default function PaymentsPage() {
       p.transaction_ref?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
+
+    if (hasPaymentDueManagement === null) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-slate-500 text-sm">
+          Checking your plan...
+        </div>
+      </div>
+    );
+  }
+
+  if (hasPaymentDueManagement === false) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="max-w-md w-full bg-white border border-slate-200 rounded-2xl shadow-sm p-8 text-center">
+          <div className="mx-auto h-14 w-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+            <CreditCard size={26} />
+          </div>
+
+          <h2 className="mt-5 text-xl font-bold text-slate-900">
+            Payment & Due Management is a Pro Feature
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500 leading-6">
+            Track payments, outstanding dues and collections with
+            Vyastha Pro.
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              toast.info(
+                'Please upgrade to Vyastha Pro to use Payment & Due Management.'
+              )
+            }
+            className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Upgrade to Pro
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 font-sans">

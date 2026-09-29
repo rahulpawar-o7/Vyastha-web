@@ -210,6 +210,55 @@ async def get_advanced_analytics(
         month: round(amount, 2)
         for month, amount in sorted(monthly_revenue.items())
     }
+        # Top Products by Revenue
+    # Uses finalized/sent/paid invoices only and aggregates
+    # historical line-item revenue product-wise.
+
+    product_revenue: Dict[str, Dict[str, Any]] = {}
+
+    for invoice in active_invoices:
+        if invoice.get("status") not in ["finalized", "sent", "paid"]:
+            continue
+
+        for item in invoice.get("line_items", []):
+            product_id = item.get("product_id")
+            product_name = (
+                item.get("description")
+                or product_id
+                or "Unknown Product"
+            )
+
+            quantity = float(item.get("quantity", 0) or 0)
+            unit_price = float(item.get("unit_price", 0) or 0)
+
+            if quantity <= 0 or unit_price < 0:
+                continue
+
+            item_revenue = quantity * unit_price
+
+            key = product_id or product_name
+
+            if key not in product_revenue:
+                product_revenue[key] = {
+                    "product_name": product_name,
+                    "revenue": 0.0,
+                }
+
+            product_revenue[key]["revenue"] += item_revenue
+
+    top_products = sorted(
+        product_revenue.values(),
+        key=lambda item: item["revenue"],
+        reverse=True,
+    )[:5]
+
+    top_products = [
+        {
+            "product_name": item["product_name"],
+            "revenue": round(item["revenue"], 2),
+        }
+        for item in top_products
+    ]
 
     # ---------------------------------------------------------
     # Collections by month
@@ -299,6 +348,7 @@ async def get_advanced_analytics(
             "out_of_stock_count": len(out_of_stock_products),
             "inventory_value": round(inventory_value, 2),
         },
+        "top_products": top_products,
 
         "trends": {
             "monthly_revenue": monthly_revenue,
