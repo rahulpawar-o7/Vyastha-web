@@ -24,6 +24,7 @@ from lib import plans as plans_lib
 from lib import razorpay_client
 from lib.features import require_feature
 from lib.features import resolve_entitlements
+from lib.business_scope import get_business_data_owner_id
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -109,37 +110,6 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-async def get_business_data_owner_id(user: dict) -> str:
-    """
-    Returns the canonical data-owner user ID for the current business.
-
-    Staff members keep their own identity/role, but business-owned
-    data continues to use the business owner's existing user_id.
-    """
-
-    user_id = user.get("id") or str(user["_id"])
-    business_id = user.get("business_id")
-
-    # Legacy users without a business_id continue using their own data.
-    if not business_id:
-        return user_id
-
-    owner = await db.users.find_one(
-        {
-            "business_id": business_id,
-            "role": {"$in": ["owner", "business_owner"]},
-        },
-        {
-            "_id": 0,
-            "id": 1,
-        },
-    )
-
-    if owner and owner.get("id"):
-        return owner["id"]
-
-    # Safe fallback
-    return user_id
 
 
 # ==========================================

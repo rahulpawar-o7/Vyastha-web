@@ -11,11 +11,11 @@ import {
   CreditCard, 
   Boxes, 
   Users, 
+  BarChart3,
   Settings, 
   LogOut, 
   AlertTriangle, 
   Building2, 
-  Sparkles,
   Menu,
   X
 } from 'lucide-react';
@@ -87,6 +87,7 @@ export default function Layout({ children }) {
       badgeColor: 'bg-amber-100 text-amber-800 border-amber-300'
     },
     { name: 'Customers', path: '/customers', icon: Users, testId: 'nav-customers-link' },
+    { name: 'Analytics', path: '/analytics', icon: BarChart3, testId: 'nav-analytics-link' },
     { name: 'Team & Staff', path: '/team', icon: Users, testId: 'nav-team-link' },
     { name: 'Company Settings', path: '/settings', icon: Settings, testId: 'nav-settings-link' },
   ];

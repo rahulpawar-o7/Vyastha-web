@@ -19,6 +19,8 @@ import InventoryPage from './pages/InventoryPage';
 import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
 import TeamPage from './pages/TeamPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+
 
 function ProtectedRoute({ children, withLayout = true }) {
   const { user, loading } = useAuth();
@@ -189,7 +191,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
-
+		<Route
+  path="/analytics"
+  element={
+    <ProtectedRoute>
+      <AnalyticsPage />
+    </ProtectedRoute>
+  }
+/>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
