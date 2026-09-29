@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from lib.auth import get_current_user
 from lib.db import db
 from lib.features import require_feature
+from lib.business_scope import get_business_data_owner_id
 
 
 router = APIRouter(
@@ -26,7 +27,7 @@ async def get_advanced_analytics(
     Does not modify existing dashboard/business logic.
     """
 
-    user_id = user.get("id") or str(user["_id"])
+    user_id = await get_business_data_owner_id(user)
 
     # ---------------------------------------------------------
     # Load existing business data
