@@ -3,6 +3,7 @@ import { Users, UserPlus, Trash2, Loader2, Mail, Shield, X } from 'lucide-react'
 import { toast } from 'sonner';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 export default function TeamPage() {
   const { user } = useAuth();
@@ -102,17 +103,12 @@ if (hasMultiUser === false) {
           Upgrade your plan to add and manage staff members.
         </p>
 
-        <button
-          type="button"
-          onClick={() =>
-            toast.info(
-              'Please upgrade to Vyastha Pro to use Team & Staff.'
-            )
-          }
-          className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-        >
-          Upgrade to Pro
-        </button>
+        <Link
+  to="/subscription"
+  className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+>
+  Upgrade to Pro
+</Link>
       </div>
     </div>
   );

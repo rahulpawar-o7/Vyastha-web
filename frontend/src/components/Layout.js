@@ -89,6 +89,7 @@ export default function Layout({ children }) {
     { name: 'Customers', path: '/customers', icon: Users, testId: 'nav-customers-link' },
     { name: 'Analytics', path: '/analytics', icon: BarChart3, testId: 'nav-analytics-link' },
     { name: 'Team & Staff', path: '/team', icon: Users, testId: 'nav-team-link' },
+    { name: 'Subscription & Plan', path: '/subscription', icon: CreditCard, testId: 'nav-subscription-link' },
     { name: 'Company Settings', path: '/settings', icon: Settings, testId: 'nav-settings-link' },
   ];
 

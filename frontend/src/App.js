@@ -20,6 +20,7 @@ import CustomersPage from './pages/CustomersPage';
 import SettingsPage from './pages/SettingsPage';
 import TeamPage from './pages/TeamPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import SubscriptionPage from './pages/SubscriptionPage';
 
 
 function ProtectedRoute({ children, withLayout = true }) {
@@ -196,6 +197,14 @@ function App() {
   element={
     <ProtectedRoute>
       <AnalyticsPage />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/subscription"
+  element={
+    <ProtectedRoute>
+      <SubscriptionPage />
     </ProtectedRoute>
   }
 />

@@ -563,7 +563,7 @@ export default function DashboardPage() {
                 {/* Upgrade button only for normal Vyastha */}
                 {!isPro && (
                   <Link
-                    to="/settings"
+                   to="/subscription"
                     className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm transition-all"
                   >
                     <Sparkles size={15} />

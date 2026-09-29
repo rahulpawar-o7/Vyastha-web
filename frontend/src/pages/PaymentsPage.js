@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import PaymentRecordModal from '../components/PaymentRecordModal';
+import { Link } from 'react-router-dom';
 
 import { 
   CreditCard, 
@@ -110,17 +111,12 @@ export default function PaymentsPage() {
             Vyastha Pro.
           </p>
 
-          <button
-            type="button"
-            onClick={() =>
-              toast.info(
-                'Please upgrade to Vyastha Pro to use Payment & Due Management.'
-              )
-            }
-            className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-          >
-            Upgrade to Pro
-          </button>
+          <Link
+  to="/subscription"
+  className="mt-6 inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+>
+  Upgrade to Pro
+</Link>
         </div>
       </div>
     );
