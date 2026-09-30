@@ -33,6 +33,7 @@ FEATURE_KEYS: tuple[str, ...] = (
     "advanced_analytics",
     "advanced_inventory",
     "smart_features",
+    "ai_business_assistant",
     "multi_user",
     "priority_support",
     "api_access",
@@ -85,6 +86,7 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
             "advanced_analytics": False,
             "advanced_inventory": False,
             "smart_features": False,
+            "ai_business_assistant": False,
             "payment_due_management": False,
             "multi_user": False,
             "priority_support": False,
@@ -127,6 +129,7 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
             "advanced_analytics": False,
             "advanced_inventory": False,
             "smart_features": False,
+            "ai_business_assistant": False,
             "payment_due_management": False,
             "multi_user": True,
             "priority_support": False,
@@ -165,6 +168,7 @@ PLAN_DEFAULTS: list[dict[str, Any]] = [
             "advanced_analytics": True,
             "advanced_inventory": True,
             "smart_features": True,
+            "ai_business_assistant": True,
             "payment_due_management": True,
             "multi_user": True,
             "priority_support": False,
@@ -374,3 +378,4 @@ def is_unlimited_limit(
     Check whether a particular plan limit is unlimited.
     """
     return get_plan_limit(slug, limit_key) == -1
+

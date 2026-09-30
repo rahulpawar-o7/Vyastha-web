@@ -25,6 +25,8 @@ from lib import razorpay_client
 from lib.features import require_feature
 from lib.features import resolve_entitlements
 from lib.business_scope import get_business_data_owner_id
+from lib import ai_assistant as ai_svc
+from lib import ai_data as ai_data_svc
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -1588,6 +1590,60 @@ async def record_payment(
         "message": "Payment recorded successfully",
         "payment": pay_doc
     }
+
+
+# ==========================================
+# Vyastha AI Business Assistant
+# ==========================================
+
+class AskBody(BaseModel):
+    question: str
+    language: str = "hinglish"
+    session_id: Optional[str] = None
+
+
+@api_router.get("/ai/suggestions")
+async def ai_suggestions(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("ai_business_assistant")),
+):
+    data_owner_id = await get_business_data_owner_id(user)
+    return await ai_svc.suggested_questions(data_owner_id)
+
+
+@api_router.get("/ai/alerts")
+async def ai_alerts(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("ai_business_assistant")),
+):
+    data_owner_id = await get_business_data_owner_id(user)
+    return await ai_data_svc.get_business_alerts(data_owner_id)
+
+
+@api_router.post("/ai/ask")
+async def ai_ask(
+    body: AskBody,
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("ai_business_assistant")),
+):
+    if not body.question.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Question cannot be empty"
+        )
+
+    data_owner_id = await get_business_data_owner_id(user)
+
+    result = await ai_svc.ask(
+        user_id=data_owner_id,
+        question=body.question.strip()[:1000],
+        language=body.language,
+        business_name=user.get("company_name", "your business"),
+        session_id=body.session_id,
+    )
+
+    return result
+
 
 
 # ==========================================

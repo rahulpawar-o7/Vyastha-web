@@ -86,6 +86,71 @@ export default function InvoiceBuilderPage() {
     auto_deduct_inventory: true
   });
 
+
+  useEffect(() => {
+  const rawDraft = sessionStorage.getItem('vyastha_invoice_draft');
+
+  if (!rawDraft) return;
+
+  try {
+    const draft = JSON.parse(rawDraft);
+
+    const buyer = draft?.buyer || {};
+    const draftItems = Array.isArray(draft?.line_items)
+      ? draft.line_items
+      : [];
+
+    const lineItems = draftItems.length > 0
+      ? draftItems.map((item) => {
+          const quantity = Number(item.quantity) || 1;
+          const unitPrice = Number(item.unit_price) || 0;
+
+          return {
+            product_id: '',
+            description: item.description || '',
+            quantity,
+            unit: 'pc',
+            pieces: quantity,
+            unit_price: unitPrice,
+            amount: Number((quantity * unitPrice).toFixed(2)),
+          };
+        })
+      : [
+          {
+            product_id: '',
+            description: '',
+            quantity: 1,
+            unit: 'pc',
+            pieces: 1,
+            unit_price: 0,
+            amount: 0,
+          },
+        ];
+
+    setInvoice((current) => ({
+      ...current,
+      customer_id: '',
+      buyer_details: {
+        ...current.buyer_details,
+        company_name: buyer.company_name || '',
+        contact_person: current.buyer_details.contact_person || '',
+        phone: buyer.phone || '',
+        email: current.buyer_details.email || '',
+        address: current.buyer_details.address || '',
+        customer_id: current.buyer_details.customer_id || '',
+      },
+      line_items: lineItems,
+    }));
+
+    sessionStorage.removeItem('vyastha_invoice_draft');
+  } catch (error) {
+    console.error('Failed to load AI invoice draft:', error);
+    sessionStorage.removeItem('vyastha_invoice_draft');
+  }
+}, []);
+
+
+
   useEffect(() => {
     const initData = async () => {
       try {

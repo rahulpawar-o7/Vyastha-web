@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
+import AskVyastha from './AskVyastha';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -248,6 +249,7 @@ export default function Layout({ children }) {
           {children}
         </main>
       </div>
+      <AskVyastha />
     </div>
   );
 }
