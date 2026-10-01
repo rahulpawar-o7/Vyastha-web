@@ -28,3 +28,4 @@ typer>=0.9.0
 razorpay 
 google-genai
 resend[async]
+Flask
