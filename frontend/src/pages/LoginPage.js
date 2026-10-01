@@ -16,19 +16,27 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
+
   try {
-  await login(email, password);
-  toast.success('Welcome back!');
-  sessionStorage.setItem('vyastha_show_welcome', '1');
-  navigate('/dashboard');
-} catch (err) {
-      toast.error(err.response?.data?.detail || 'Invalid login credentials');
-    } finally {
-      setLoading(false);
-    }
-  };
+    await login(email, password);
+
+    toast.success('Welcome back!');
+
+    sessionStorage.setItem('vyastha_show_welcome', '1');
+
+    navigate('/dashboard');
+  } catch (err) {
+    const message =
+      err.response?.data?.detail ||
+      'Invalid login credentials';
+
+    toast.error(message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     // <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
@@ -71,6 +79,8 @@ export default function LoginPage() {
               </div>
             </div>
 
+            
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                 Password
@@ -88,7 +98,14 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-
+            <div className="text-right -mt-2">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+              >
+                Forgot Password?
+              </Link>
+            </div>
             <button
               type="submit"
               disabled={loading}

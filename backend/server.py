@@ -406,112 +406,6 @@ async def restore_inventory_for_items(user_id: str, line_items: List[dict], refe
 # ==========================================
 # Auth Endpoints
 # ==========================================
-@api_router.post("/auth/register")
-async def register(input: UserRegister, response: Response):
-    email_clean = input.email.strip().lower()
-    existing = await db.users.find_one({"email": email_clean})
-    if existing:
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
-    
-    hashed = hash_password(input.password)
-    user_id = str(uuid.uuid4())
-    user_doc = {
-        "id": user_id,
-        "email": email_clean,
-        "name": input.name,
-        "company_name": input.company_name or "My Business",
-        "phone": input.phone or "",
-        "password_hash": hashed,
-        "role": "business_owner",
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.users.insert_one(user_doc)
-    
-    # Create initial company profile
-    await db.company_profiles.update_one(
-        {"user_id": user_id},
-        {"$set": {
-            "user_id": user_id,
-            "company_name": input.company_name or "My Business",
-            "email": email_clean,
-            "phone": input.phone or "",
-            "bank_details": {
-                "bank_name": "State Bank of India",
-                "account_holder_name": input.company_name or input.name,
-                "account_number": "39201928374",
-                "ifsc": "SBIN0001234",
-                "branch": "Main Branch",
-                "upi_id": f"{email_clean.split('@')[0]}@okhdfcbank"
-            },
-            "default_terms": "1. Payment is due within 15 days of invoice date.\n2. Goods once sold will not be taken back.\n3. All disputes are subject to local jurisdiction.",
-            "invoice_prefix": "INV",
-            "quotation_prefix": "QUO"
-        }},
-        upsert=True
-    )
-    
-    access_token = create_access_token(user_id, email_clean)
-    refresh_token = create_refresh_token(user_id)
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=86400 * 7, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=86400 * 30, path="/")
-    
-    return {
-        "token": access_token,
-        "user": {
-            "id": user_id,
-            "email": email_clean,
-            "name": input.name,
-            "company_name": input.company_name or "My Business",
-            "role": "business_owner"
-        }
-    }
-
-@api_router.post("/auth/login")
-async def login(input: UserLogin, response: Response):
-    email_clean = input.email.strip().lower()
-    user = await db.users.find_one({"email": email_clean})
-    if not user or not verify_password(input.password, user.get("password_hash", "")):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-
-    now = datetime.now(timezone.utc).isoformat()
-
-    if not user.get("first_login_at"):
-        await db.users.update_one(
-            {"_id": user["_id"]},
-            {
-                "$set": {
-                    "first_login_at": now,
-                    "last_login_at": now,
-                }
-            },
-        )
-    else:
-        await db.users.update_one(
-            {"_id": user["_id"]},
-            {
-                "$set": {
-                    "last_login_at": now,
-                }
-            },
-        )
-
-    user_id = user.get("id") or str(user["_id"])
-    access_token = create_access_token(user_id, email_clean)
-    refresh_token = create_refresh_token(user_id)
-    
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=False, samesite="lax", max_age=86400 * 7, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=False, samesite="lax", max_age=86400 * 30, path="/")
-    
-    return {
-        "token": access_token,
-        "user": {
-            "id": user_id,
-            "email": email_clean,
-            "name": user.get("name", "Business Owner"),
-            "company_name": user.get("company_name", ""),
-            "role": user.get("role", "business_owner")
-        }
-    }
 
 @api_router.post("/auth/demo-login")
 async def demo_login(response: Response):
@@ -1757,3 +1651,4 @@ app.add_middleware(
 
 app.include_router(analytics_router, prefix="/api")
 app.include_router(team_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")

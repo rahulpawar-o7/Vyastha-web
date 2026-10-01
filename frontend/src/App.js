@@ -21,6 +21,9 @@ import SettingsPage from './pages/SettingsPage';
 import TeamPage from './pages/TeamPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SubscriptionPage from './pages/SubscriptionPage';
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 
 function ProtectedRoute({ children, withLayout = true }) {
@@ -73,6 +76,21 @@ function App() {
                 </PublicRoute>
               }
             />
+            
+            <Route
+              path="/forgot-password"
+              element={<ForgotPasswordPage />}
+            />
+
+            <Route
+              path="/verify-email"
+              element={<VerifyEmailPage />}
+            />
+            <Route
+              path="/reset-password"
+              element={<ResetPasswordPage />}
+            />
+
 
             {/* Onboarding — protected but without global layout */}
             <Route

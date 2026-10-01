@@ -269,6 +269,18 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
 
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=1)
+    new_password: str = Field(min_length=6)
+
 
 # ===========================================================================
 # USER / BUSINESS RESPONSE MODELS

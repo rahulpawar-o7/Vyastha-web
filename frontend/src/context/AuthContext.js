@@ -42,13 +42,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   const register = async (formData) => {
-    const res = await api.post('/auth/register', formData);
-    if (res.data.token) {
-      localStorage.setItem('vyastha_token', res.data.token);
-    }
-    setUser(res.data.user);
-    return res.data;
+  const signupData = {
+    name: formData.name,
+    email: formData.email,
+    password: formData.password,
+    business_name: formData.company_name,
   };
+
+  const res = await api.post('/auth/signup', signupData);
+
+  // Email verification ke baad hi user login karega.
+  // Signup ke response me token aaye bhi to automatically
+  // session create nahi karna.
+  return res.data;
+};
 
   const logout = async () => {
     try {

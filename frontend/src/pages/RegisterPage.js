@@ -22,18 +22,37 @@ export default function RegisterPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await register(formData);
-      toast.success('Account created! Welcome to Vyastha.');
-      navigate('/onboarding');
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Failed to register account');
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  setLoading(true);
+
+  try {
+    console.log("REGISTER FORM DATA:", formData);
+    await register(formData);
+
+    toast.success(
+      'Account created! Please check your email to verify your account.'
+    );
+
+    navigate('/login', {
+      state: {
+        message:
+          'Account created successfully. Please verify your email before signing in.',
+      },
+    });
+  }catch (err) {
+  const detail = err.response?.data?.detail;
+
+  const message = Array.isArray(detail)
+    ? detail.map((item) => item.msg).join(', ')
+    : typeof detail === 'object' && detail !== null
+      ? detail.msg || 'Registration failed'
+      : detail || 'Failed to register account';
+
+  toast.error(message);
+} finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 flex flex-col justify-center items-center p-4 relative font-sans">
@@ -153,7 +172,7 @@ export default function RegisterPage() {
               data-testid="register-submit-btn"
               className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold transition-all shadow-md"
             >
-              {loading ? 'Creating Account...' : 'Create Account & Setup'}
+              {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
 
