@@ -165,6 +165,7 @@ class Subscription(BaseModel):
 
     current_period_start: datetime | None = None
     current_period_end: datetime | None = None
+    pro_trial_used: bool = False
 
     cancel_at_period_end: bool = False
     cancelled_at: datetime | None = None

@@ -66,12 +66,28 @@ async def start_trial(
             existing.get("plan_slug", "free")
         ).strip().lower()
 
-        # Only the normal Vyastha plan can be converted
-        # into the Pro free trial.
+        trial_already_used = bool(
+            existing.get("pro_trial_used", False)
+        )
+
+        # Any existing Pro subscription means the trial has already
+        # been used, including older records without the new field.
+        if existing_plan == "pro":
+            trial_already_used = True
+
+        if trial_already_used:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Vyastha Pro free trial has already been used. "
+                    "Please purchase the Pro subscription to continue."
+                ),
+            )
+
         if existing_plan != "free":
             raise HTTPException(
                 status_code=400,
-                detail="This business already has a paid or Pro subscription.",
+                detail="Only the Free plan is eligible for the Pro trial.",
             )
 
     # Load the active Pro plan from MongoDB.
@@ -123,6 +139,7 @@ async def start_trial(
                     "cancelled_at": None,
                     "pending_plan_slug": None,
                     "updated_at": now,
+                    "pro_trial_used": True,
                 }
             },
         )

@@ -1652,3 +1652,4 @@ app.add_middleware(
 app.include_router(analytics_router, prefix="/api")
 app.include_router(team_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(subscriptions_router, prefix="/api")
