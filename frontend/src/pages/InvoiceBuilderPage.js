@@ -33,6 +33,7 @@ export default function InvoiceBuilderPage() {
   const [invoice, setInvoice] = useState({
     invoice_number: '',
     invoice_date: new Date().toISOString().split('T')[0],
+    due_date: '',
     shipping_date: new Date().toISOString().split('T')[0],
     customer_id: '',
     vehicle_number: '',
@@ -582,7 +583,7 @@ export default function InvoiceBuilderPage() {
         <h2 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-3">
           Invoice Identifiers & Transport Details
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 text-xs">
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Invoice #</label>
             <input
@@ -605,6 +606,24 @@ export default function InvoiceBuilderPage() {
               className="w-full px-3 py-2 border border-slate-300 rounded-lg font-semibold"
             />
           </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+              Payment Due Date *
+            </label>
+            <input
+              type="date"
+              required
+              value={invoice.due_date || ''}
+              min={invoice.invoice_date}
+              onChange={(e) =>
+                setInvoice({ ...invoice, due_date: e.target.value })
+              }
+              data-testid="invoice-due-date-input"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg font-semibold"
+            />
+          </div>
+
           <div>
             <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Shipping Date</label>
             <input

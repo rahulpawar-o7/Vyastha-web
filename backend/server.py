@@ -230,6 +230,7 @@ class LineItem(BaseModel):
 
 class InvoiceCreate(BaseModel):
     invoice_number: Optional[str] = None
+    due_date: Optional[str] = ""
     invoice_date: str = Field(default_factory=lambda: date.today().isoformat())
     shipping_date: Optional[str] = ""
     customer_id: Optional[str] = ""
@@ -903,6 +904,7 @@ async def create_invoice(
         "user_id": user_id,
         "invoice_number": inv_number,
         "invoice_date": data.invoice_date,
+        "due_date": data.due_date or "",
         "shipping_date": data.shipping_date or "",
         "customer_id": data.customer_id or buyer.get("customer_id", ""),
         "vehicle_number": data.vehicle_number or "",
@@ -984,6 +986,7 @@ async def update_invoice(
         
     update_doc = {
         "invoice_date": data.invoice_date,
+        "due_date": data.due_date or "",
         "shipping_date": data.shipping_date or "",
         "customer_id": data.customer_id or "",
         "vehicle_number": data.vehicle_number or "",

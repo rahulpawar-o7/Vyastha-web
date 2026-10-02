@@ -94,6 +94,12 @@ export default function PaymentRecordModal({ isOpen, onClose, invoice, onPayment
                 <span className="text-slate-500">Customer:</span>
                 <span className="font-semibold text-slate-900">{invoice.buyer_details?.company_name}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Payment Due Date:</span>
+                <span className="font-semibold text-slate-900">
+                  {invoice.due_date || 'Not specified'}
+                </span>
+              </div>
               <div className="flex justify-between border-t border-slate-200 pt-1">
                 <span className="text-slate-500">Total / Balance Due:</span>
                 <span className="font-mono font-bold text-blue-600">

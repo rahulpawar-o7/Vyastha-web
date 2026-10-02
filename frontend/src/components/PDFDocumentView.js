@@ -2,14 +2,23 @@ import appLogo from '../assets/vyastha_logo.jpeg';
 import html2pdf from 'html2pdf.js';
 import React, { useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, Printer, CheckCircle, ShieldCheck } from 'lucide-react';
+import {
+  Download,
+  Printer,
+  CheckCircle,
+  ShieldCheck,
+  MessageCircle,
+  Loader2
+} from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 
+
 export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
   const printRef = useRef(null);
   const [downloading, setDownloading] = useState(false);
+  const [sharingWhatsApp, setSharingWhatsApp] = useState(false);
 
   const isInvoice = type.toUpperCase() === 'INVOICE';
   const docNumber = isInvoice ? documentData?.invoice_number : documentData?.quotation_number;
@@ -172,6 +181,12 @@ const upiUrl = `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.compan
                 <div><span className="text-slate-400">Date:</span> <strong>{docDate}</strong></div>
                 {documentData?.shipping_date && (
                   <div><span className="text-slate-400">Shipping Date:</span> <strong>{documentData.shipping_date}</strong></div>
+                )}
+                {isInvoice && documentData?.due_date && (
+                  <div>
+                    <span className="text-slate-400">Payment Due Date:</span>{' '}
+                    <strong>{documentData.due_date}</strong>
+                  </div>
                 )}
                 {documentData?.valid_until && (
                   <div><span className="text-slate-400">Valid Until:</span> <strong>{documentData.valid_until}</strong></div>

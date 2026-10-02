@@ -10,3 +10,53 @@ Terminal 2 — Frontend :
 
 cd frontend
 yarn start
+
+
+
+
+
+@'
+import asyncio
+from datetime import datetime, timedelta, timezone
+from lib.db import db
+
+async def activate():
+    email = "YOUR_EMAIL".strip().lower()
+
+    user = await db.users.find_one(
+        {"email": email},
+        {"business_id": 1}
+    )
+
+    if not user or not user.get("business_id"):
+        print("User or Business ID not found")
+        return
+
+    now = datetime.now(timezone.utc)
+    end = now + timedelta(days=3)
+
+    result = await db.subscriptions.update_one(
+        {
+            "business_id": user["business_id"],
+            "plan_slug": "pro"
+        },
+        {
+            "$set": {
+                "status": "trialing",
+                "current_period_start": now,
+                "current_period_end": end,
+                "trial_days": 3,
+                "amount": 99.0,
+                "currency": "INR",
+                "pro_trial_used": True,
+                "updated_at": now
+            }
+        }
+    )
+
+    print("Matched:", result.matched_count)
+    print("Updated:", result.modified_count)
+    print("Pro access until:", end.isoformat())
+
+asyncio.run(activate())
+'@ | python -
