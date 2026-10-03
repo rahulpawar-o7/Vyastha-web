@@ -36,12 +36,13 @@ export default function AnalyticsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locked, setLocked] = useState(false);
+  const [period, setPeriod] = useState('month');
 
 
 
   useEffect(() => {
     api
-      .get('/analytics/advanced')
+      .get(`/analytics/advanced?period=${period}`)
       .then((response) => {
         const backendData = response.data || {};
 
@@ -51,26 +52,13 @@ export default function AnalyticsPage() {
          * Vyastha Pro Analytics frontend.
          */
 
-        const monthlyRevenue =
-          backendData.trends?.monthly_revenue || {};
-
-        const monthlyCollections =
-          backendData.trends?.monthly_collections || {};
-
-        const months = Array.from(
-          new Set([
-            ...Object.keys(monthlyRevenue),
-            ...Object.keys(monthlyCollections),
-          ])
-        ).sort();
-
-        const monthly = months
-          .slice(-6)
-          .map((month) => ({
-            month,
-            sales: Number(monthlyRevenue[month] || 0),
-            collected: Number(monthlyCollections[month] || 0),
-          }));
+        const monthly = (
+          backendData.trends?.chart_data || []
+        ).map((item) => ({
+          month: item.label,
+          sales: Number(item.sales || 0),
+          collected: Number(item.collected || 0),
+        }));
 
         const paymentBreakdown = [
           {
@@ -128,7 +116,7 @@ export default function AnalyticsPage() {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [period]);
 
   if (loading) {
     return (
@@ -232,80 +220,90 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
+
       {/* Sales vs Collections */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <TrendingUp
-            size={18}
-            className="text-blue-600"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+            <TrendingUp
+              size={18}
+              className="text-blue-600"
+            />
+            Sales vs Collections
+          </h3>
 
-          Sales vs Collections
-        </h3>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'Day', value: 'day' },
+              { label: 'Week', value: 'week' },
+              { label: 'Month', value: 'month' },
+              { label: 'Year', value: 'year' },
+              { label: 'All', value: 'all' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setPeriod(option.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  period === option.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        <ResponsiveContainer
-          width="100%"
-          height={280}
-        >
+        <ResponsiveContainer width="100%" height={280}>
           <AreaChart data={data?.monthly || []}>
             <defs>
-              <linearGradient
-                id="gS"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor="#2563EB"
-                  stopOpacity={0.3}
-                />
-
-                <stop
-                  offset="95%"
-                  stopColor="#2563EB"
-                  stopOpacity={0}
-                />
+              <linearGradient id="gS" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#2563EB" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
               </linearGradient>
 
-              <linearGradient
-                id="gC"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-                <stop
-                  offset="5%"
-                  stopColor="#16A34A"
-                  stopOpacity={0.3}
-                />
-
-                <stop
-                  offset="95%"
-                  stopColor="#16A34A"
-                  stopOpacity={0}
-                />
+              <linearGradient id="gC" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#16A34A" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#16A34A" stopOpacity={0} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#E2E8F0"
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
 
             <XAxis
               dataKey="month"
-              tick={{ fontSize: 12 }}
+              tick={{ fontSize: 11 }}
+              tickFormatter={(value) => {
+                if (period === 'day' || period === 'week') {
+                  return value.slice(5);
+                }
+
+                if (period === 'month') {
+                  const [year, month] = value.split('-');
+                  return new Date(
+                    Number(year),
+                    Number(month) - 1
+                  ).toLocaleDateString('en-IN', {
+                    month: 'short',
+                    year: '2-digit',
+                  });
+                }
+
+                return value;
+              }}
+              angle={period === 'day' ? -35 : 0}
+              textAnchor={period === 'day' ? 'end' : 'middle'}
+              height={period === 'day' ? 55 : 30}
             />
 
             <YAxis
-                tickFormatter={(value) =>
-                    `₹${Number(value || 0).toLocaleString('en-IN')}`
-                }
-                tick={{ fontSize: 11 }}
-                width={70}
+              tickFormatter={(value) =>
+                `₹${Number(value || 0).toLocaleString('en-IN')}`
+              }
+              tick={{ fontSize: 11 }}
+              width={70}
             />
 
             <Tooltip

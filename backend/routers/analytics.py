@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends
@@ -17,18 +17,20 @@ router = APIRouter(
 
 @router.get("/advanced")
 async def get_advanced_analytics(
+    period: str = "month",
     user: dict = Depends(get_current_user),
     _: None = Depends(require_feature("advanced_analytics")),
-):
+    ):
     """
-    Advanced business analytics for Vyastha Pro users.
+     Advanced business analytics for Vyastha Pro users.
 
     Uses existing invoices, payments and products data.
-    Does not modify existing dashboard/business logic.
+     Does not modify existing dashboard/business logic.
     """
+    if period not in {"day", "week", "month", "year", "all"}:
+        period = "month"
 
     user_id = await get_business_data_owner_id(user)
-
     # ---------------------------------------------------------
     # Load existing business data
     # ---------------------------------------------------------
@@ -210,7 +212,8 @@ async def get_advanced_analytics(
         month: round(amount, 2)
         for month, amount in sorted(monthly_revenue.items())
     }
-        # Top Products by Revenue
+
+    # Top Products by Revenue
     # Uses finalized/sent/paid invoices only and aggregates
     # historical line-item revenue product-wise.
 
@@ -308,6 +311,134 @@ async def get_advanced_analytics(
             monthly_invoices.get(month_key, 0) + 1
         )
 
+
+    
+    # ---------------------------------------------------------
+    # Period-based Sales vs Collections Chart
+    # ---------------------------------------------------------
+    from collections import defaultdict
+
+    chart_sales = defaultdict(float)
+    chart_collections = defaultdict(float)
+
+    today = date.today()
+
+    def parse_analytics_date(value):
+        if not value:
+            return None
+
+        try:
+            return datetime.fromisoformat(
+                str(value).replace("Z", "+00:00")
+            ).date()
+        except (ValueError, TypeError):
+            try:
+                return date.fromisoformat(str(value)[:10])
+            except (ValueError, TypeError):
+                return None
+
+
+    def get_period_key(value):
+        if period == "day":
+            return value.isoformat()
+
+        if period == "week":
+            week_start = value - timedelta(days=value.weekday())
+            return week_start.isoformat()
+
+        if period in {"month", "all"}:
+            return value.strftime("%Y-%m")
+
+        if period == "year":
+            return str(value.year)
+
+        return value.strftime("%Y-%m")
+
+    # Define chart date range and labels
+    if period == "day":
+        start_date = today - timedelta(days=29)
+        date_keys = [
+            (start_date + timedelta(days=i)).isoformat()
+            for i in range(30)
+        ]
+
+    elif period == "week":
+        current_week_start = today - timedelta(days=today.weekday())
+        start_date = current_week_start - timedelta(weeks=11)
+        date_keys = [
+            (start_date + timedelta(weeks=i)).isoformat()
+            for i in range(12)
+        ]
+
+    elif period == "month":
+        current_month = today.replace(day=1)
+        date_keys = []
+
+        for i in range(11, -1, -1):
+            year = current_month.year
+            month = current_month.month - i
+
+            while month <= 0:
+                month += 12
+                year -= 1
+
+            date_keys.append(f"{year:04d}-{month:02d}")
+
+        start_date = date(
+            int(date_keys[0][:4]),
+            int(date_keys[0][5:7]),
+            1,
+        )
+
+    else:
+        start_date = None
+        date_keys = []
+
+    for invoice in active_invoices:
+        invoice_date = parse_analytics_date(
+            invoice.get("invoice_date") or invoice.get("created_at")
+        )
+
+        if invoice_date and (
+            start_date is None or invoice_date >= start_date
+        ):
+            key = get_period_key(invoice_date)
+            chart_sales[key] += float(
+                invoice.get("total_amount", 0) or 0
+            )
+
+    for payment in successful_payments:
+        payment_date = parse_analytics_date(
+            payment.get("payment_date") or payment.get("created_at")
+        )
+
+        if payment_date and (
+            start_date is None or payment_date >= start_date
+        ):
+            key = get_period_key(payment_date)
+            chart_collections[key] += float(
+                payment.get("amount", 0) or 0
+            )
+
+    if period == "year":
+        date_keys = sorted(
+            set(chart_sales.keys()) | set(chart_collections.keys())
+        )
+
+    elif period == "all":
+        date_keys = sorted(
+            set(chart_sales.keys()) | set(chart_collections.keys())
+        )
+
+    chart_data = [
+        {
+            "label": key,
+            "sales": round(chart_sales[key], 2),
+            "collected": round(chart_collections[key], 2),
+        }
+        for key in date_keys
+    ]
+
     # ---------------------------------------------------------
     # Final response
     # ---------------------------------------------------------
@@ -350,11 +481,12 @@ async def get_advanced_analytics(
         },
         "top_products": top_products,
 
-        "trends": {
+                "trends": {
             "monthly_revenue": monthly_revenue,
             "monthly_collections": monthly_collections,
             "monthly_invoice_count": dict(
                 sorted(monthly_invoices.items())
             ),
+            "chart_data": chart_data,
         },
     }

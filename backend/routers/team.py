@@ -5,7 +5,6 @@ from pydantic import BaseModel, EmailStr, Field
 
 from lib.auth import get_current_user, hash_password
 from lib.db import db
-from lib.features import require_feature
 from lib.features import require_feature, resolve_entitlements
 
 
