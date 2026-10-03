@@ -36,44 +36,6 @@ export default function PDFDocumentView({ documentData, type = 'INVOICE' }) {
 
 const upiUrl = `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.company_name || 'Vyastha'}&am=${qrAmount.toFixed(2)}&cu=INR&tn=${docNumber}`;
 
-  // const handleDownloadPDF = async () => {
-  //   if (!printRef.current) return;
-  //   setDownloading(true);
-  //   try {
-  //     const canvas = await html2canvas(printRef.current, {
-  //       scale: 2,
-  //       useCORS: true,
-  //       logging: false,
-  //       backgroundColor: '#FFFFFF',
-  //     });
-  //     const imgData = canvas.toDataURL('image/png');
-  //     const pdf = new jsPDF('p', 'mm', 'a4');
-  //     const imgWidth = 210;
-  //     const pageHeight = 297;
-  //     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-  //     let heightLeft = imgHeight;
-  //     let position = 0;
-
-  //     pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-  //     heightLeft -= pageHeight;
-
-  //     while (heightLeft >= 0) {
-  //       position = heightLeft - imgHeight;
-  //       pdf.addPage();
-  //       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-  //       heightLeft -= pageHeight;
-  //     }
-
-  //     pdf.save(`${docNumber || 'document'}.pdf`);
-  //     toast.success(`${isInvoice ? 'Invoice' : 'Quotation'} PDF downloaded successfully!`);
-  //   } catch (err) {
-  //     console.error(err);
-  //     toast.error("Failed to generate PDF. You can also use the Print button.");
-  //   } finally {
-  //     setDownloading(false);
-  //   }
-  // };
-
     const handleDownloadPDF = async () => {
   if (!printRef.current) return;
   setDownloading(true);
@@ -98,7 +60,81 @@ const upiUrl = `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.compan
   }
 };
 
+const buildWhatsAppMessage = () => {
+  const sellerName =
+    seller?.company_name ||
+    seller?.business_name ||
+    seller?.name ||
+    'Vyastha';
 
+  return (
+    `Dear ${buyer?.company_name || buyer?.name || 'Customer'},\n\n` +
+    `Please find your ${isInvoice ? 'invoice' : 'quotation'} #${docNumber || ''} from ${sellerName}.\n\n` +
+    `${isInvoice ? 'Invoice' : 'Quotation'} Amount: ₹${Number(qrAmount || 0).toFixed(2)}\n\n` +
+    `Thank you for your business.\n\nRegards,\n${sellerName}`
+  );
+};
+
+const handleWhatsAppShare = async () => {
+  try {
+    setSharingWhatsApp(true);
+
+    // Open WhatsApp immediately during the button click
+    const phone = String(buyer?.phone || '').replace(/\D/g, '');
+    const phoneWithCountryCode =
+      phone.length === 10 ? `91${phone}` : phone;
+
+    const message = encodeURIComponent(buildWhatsAppMessage());
+
+    const whatsappUrl = phoneWithCountryCode
+      ? `https://wa.me/${phoneWithCountryCode}?text=${message}`
+      : `https://wa.me/?text=${message}`;
+
+    const whatsappWindow = window.open(
+      whatsappUrl,
+      '_blank',
+      'noopener,noreferrer'
+    );
+
+    // Generate and download the PDF
+    await html2pdf()
+      .set({
+        margin: 0,
+        filename: `${docNumber || 'document'}.pdf`,
+        image: { type: 'png', quality: 1 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false
+        },
+        jsPDF: {
+          unit: 'mm',
+          format: 'a4',
+          orientation: 'portrait'
+        },
+        pagebreak: {
+          mode: ['avoid-all', 'css', 'legacy']
+        }
+      })
+      .from(printRef.current)
+      .save();
+
+    if (whatsappWindow) {
+      toast.success(
+        'PDF downloaded! Attach it in WhatsApp and send the message.'
+      );
+    } else {
+      toast.warning(
+        'PDF downloaded, but WhatsApp popup was blocked. Allow popups for this site and try again.'
+      );
+    }
+  } catch (error) {
+    console.error('WhatsApp share error:', error);
+    toast.error('Unable to prepare WhatsApp invoice.');
+  } finally {
+    setSharingWhatsApp(false);
+  }
+};
 
 
   const handlePrint = () => {
@@ -135,6 +171,22 @@ const upiUrl = `upi://pay?pa=${bank.upi_id || 'business@upi'}&pn=${seller.compan
           </button>
         </div>
       </div>
+      <button
+        type="button"
+        onClick={handleWhatsAppShare}
+        disabled={sharingWhatsApp}
+        data-testid="whatsapp-share-btn"
+        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition-all disabled:opacity-60"
+      >
+        {sharingWhatsApp ? (
+          <Loader2 size={15} className="animate-spin" />
+        ) : (
+          <MessageCircle size={15} />
+        )}
+        <span>
+          {sharingWhatsApp ? 'Preparing...' : 'Share on WhatsApp'}
+        </span>
+      </button>
 
       {/* Printable Sheet (Standard A4 High-Contrast Swiss Business Layout) */}
       <div className="flex justify-center bg-slate-200/50 p-2 sm:p-6 rounded-2xl overflow-x-auto">
