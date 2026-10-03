@@ -10,6 +10,7 @@ import bcrypt
 import jwt
 from lib.amount_words import amount_in_words
 from bson import ObjectId
+from urllib.parse import quote
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, Query
 from routers.auth import router as auth_router
@@ -1288,6 +1289,147 @@ async def delete_quotation(
     user_id = user.get("id") or str(user["_id"])
     await db.quotations.delete_one({"id": quotation_id, "user_id": user_id})
     return {"message": "Quotation deleted"}
+
+
+# ==========================================
+# Pro Reminder System
+# ==========================================
+@api_router.get("/reminders/pending")
+async def get_pending_reminders(
+    user: dict = Depends(get_current_user),
+    _: None = Depends(require_feature("payment_due_management")),
+):
+    data_owner_id = await get_business_data_owner_id(user)
+    today = date.today()
+
+    invoices = await db.invoices.find(
+        {
+            "user_id": data_owner_id,
+            "status": {"$ne": "cancelled"},
+            "payment_status": {"$ne": "paid"},
+        },
+        {"_id": 0}
+    ).to_list(1000)
+
+    reminders = []
+    total_outstanding = 0.0
+    customer_cache = {}
+
+    for invoice in invoices:
+        try:
+            balance_due = float(
+                invoice.get(
+                    "balance_due",
+                    invoice.get("total_amount", 0)
+                ) or 0
+            )
+        except (TypeError, ValueError):
+            continue
+
+        if balance_due <= 0.01:
+            continue
+
+        buyer = invoice.get("buyer_details") or {}
+
+        customer_id = (
+            invoice.get("customer_id")
+            or buyer.get("customer_id")
+            or ""
+        )
+
+        customer = {}
+
+        if customer_id:
+            if customer_id not in customer_cache:
+                customer_cache[customer_id] = (
+                    await db.customers.find_one(
+                        {
+                            "customer_id": customer_id,
+                            "user_id": data_owner_id,
+                        },
+                        {"_id": 0}
+                    ) or {}
+                )
+
+            customer = customer_cache[customer_id]
+
+        customer_name = (
+            buyer.get("company_name")
+            or customer.get("company_name")
+            or buyer.get("contact_person")
+            or customer.get("contact_person")
+            or "Customer"
+        )
+
+        phone = (
+            buyer.get("phone")
+            or customer.get("phone")
+            or ""
+        )
+
+        due_date_value = invoice.get("due_date") or ""
+        overdue = False
+
+        if due_date_value:
+            try:
+                due_date = date.fromisoformat(
+                    str(due_date_value)[:10]
+                )
+                overdue = due_date < today
+            except (TypeError, ValueError):
+                overdue = False
+
+        invoice_number = invoice.get("invoice_number", "")
+
+        message = (
+            f"Dear {customer_name}, "
+            f"this is a reminder for pending payment of "
+            f"₹{balance_due:.2f} against invoice "
+            f"{invoice_number}. Kindly arrange the payment. "
+            f"Thank you."
+        )
+
+        clean_phone = "".join(
+            char for char in str(phone)
+            if char.isdigit()
+        )
+
+        whatsapp_url = ""
+
+        if clean_phone:
+            whatsapp_url = (
+                f"https://wa.me/{clean_phone}"
+                f"?text={quote(message)}"
+            )
+
+        reminders.append({
+            "invoice_id": invoice.get("id", ""),
+            "invoice_number": invoice_number,
+            "customer": customer_name,
+            "phone": phone,
+            "has_phone": bool(clean_phone),
+            "balance_due": round(balance_due, 2),
+            "invoice_date": invoice.get("invoice_date", ""),
+            "due_date": due_date_value,
+            "overdue": overdue,
+            "message": message,
+            "whatsapp_url": whatsapp_url,
+        })
+
+        total_outstanding += balance_due
+
+    reminders.sort(
+        key=lambda item: (
+            not item["overdue"],
+            item["due_date"] or "9999-12-31",
+        )
+    )
+
+    return {
+        "count": len(reminders),
+        "total_outstanding": round(total_outstanding, 2),
+        "reminders": reminders,
+    }
 
 ## ==========================================
 # Payments Module

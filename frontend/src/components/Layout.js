@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import AskVyastha from './AskVyastha';
 import { 
+  Bell,
   LayoutDashboard, 
   FileText, 
   FileSpreadsheet, 
@@ -79,6 +80,12 @@ export default function Layout({ children }) {
       badge: `${draftStats.today_drafts_count || 0}/50`
     },
     { name: 'Payments', path: '/payments', icon: CreditCard, testId: 'nav-payments-link' },
+    {
+      name: 'Reminders',
+      path: '/reminders',
+      icon: Bell,
+      testId: 'nav-reminders-link'
+    },
     { 
       name: 'Inventory', 
       path: '/inventory', 

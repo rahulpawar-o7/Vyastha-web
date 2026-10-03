@@ -74,33 +74,36 @@ const buildWhatsAppMessage = () => {
     `Thank you for your business.\n\nRegards,\n${sellerName}`
   );
 };
-
 const handleWhatsAppShare = async () => {
+  let whatsappWindow = null;
+  let pdfUrl = null;
+
   try {
+    if (!printRef.current) {
+      toast.error('Invoice document not found.');
+      return;
+    }
+
     setSharingWhatsApp(true);
 
-    // Open WhatsApp immediately during the button click
     const phone = String(buyer?.phone || '').replace(/\D/g, '');
     const phoneWithCountryCode =
       phone.length === 10 ? `91${phone}` : phone;
 
-    const message = encodeURIComponent(buildWhatsAppMessage());
+    const message = buildWhatsAppMessage();
 
+    // Open WhatsApp immediately with customer's number
     const whatsappUrl = phoneWithCountryCode
-      ? `https://wa.me/${phoneWithCountryCode}?text=${message}`
-      : `https://wa.me/?text=${message}`;
+      ? `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
 
-    const whatsappWindow = window.open(
-      whatsappUrl,
-      '_blank',
-      'noopener,noreferrer'
-    );
+    // Open synchronously to reduce popup-blocking issues
+    whatsappWindow = window.open(whatsappUrl, '_blank');
 
-    // Generate and download the PDF
-    await html2pdf()
+    // Generate PDF
+    const pdfBlob = await html2pdf()
       .set({
         margin: 0,
-        filename: `${docNumber || 'document'}.pdf`,
         image: { type: 'png', quality: 1 },
         html2canvas: {
           scale: 2,
@@ -117,24 +120,40 @@ const handleWhatsAppShare = async () => {
         }
       })
       .from(printRef.current)
-      .save();
+      .outputPdf('blob');
+
+    // Download PDF
+    pdfUrl = URL.createObjectURL(pdfBlob);
+
+    const link = document.createElement('a');
+    link.href = pdfUrl;
+    link.download = `${docNumber || 'document'}.pdf`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    }, 60000);
 
     if (whatsappWindow) {
       toast.success(
-        'PDF downloaded! Attach it in WhatsApp and send the message.'
+        'PDF downloaded! WhatsApp opened with customer number. Attach the PDF and send.'
       );
     } else {
       toast.warning(
-        'PDF downloaded, but WhatsApp popup was blocked. Allow popups for this site and try again.'
+        'PDF downloaded, but WhatsApp popup was blocked. Allow popups and try again.'
       );
     }
   } catch (error) {
     console.error('WhatsApp share error:', error);
-    toast.error('Unable to prepare WhatsApp invoice.');
+    toast.error('Unable to prepare invoice PDF for sharing.');
   } finally {
     setSharingWhatsApp(false);
   }
 };
+
 
 
   const handlePrint = () => {

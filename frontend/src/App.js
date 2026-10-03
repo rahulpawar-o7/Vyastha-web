@@ -24,6 +24,7 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import RemindersPage from './pages/RemindersPage';
 
 
 function ProtectedRoute({ children, withLayout = true }) {
@@ -178,6 +179,16 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+              <Route
+                path="/reminders"
+                element={
+                  <ProtectedRoute>
+                    <RemindersPage />
+                  </ProtectedRoute>
+                }
+              />
+
             <Route
               path="/inventory"
               element={
